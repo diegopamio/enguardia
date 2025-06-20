@@ -1,0 +1,328 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Setup Next.js Project with Essential Dependencies",
+        "description": "Initialize a Next.js project with App Router, Tailwind CSS, Prisma ORM, and NextAuth.js for authentication.",
+        "details": "1. Use `create-next-app` to bootstrap a new Next.js project with TypeScript and App Router.\n2. Install and configure Tailwind CSS for styling.\n3. Set up Prisma ORM for database management.\n4. Install and configure NextAuth.js for authentication.\n5. Set up i18next for internationalization (EN, ES, FR).\n6. Initialize Git repository and create initial commit.",
+        "testStrategy": "Verify all dependencies are correctly installed and configured by running the development server and checking for any errors.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Initialize Next.js Project with TypeScript and App Router",
+            "description": "Use `create-next-app` to bootstrap a new Next.js project, ensuring TypeScript and the App Router are enabled.",
+            "dependencies": [],
+            "details": "Run `npx create-next-app@latest` and select TypeScript and App Router options during setup. Confirm the project structure includes the `app` directory and TypeScript configuration files.",
+            "status": "done",
+            "testStrategy": "Verify the project runs with `npm run dev` and the default Next.js welcome page loads at localhost:3000."
+          },
+          {
+            "id": 2,
+            "title": "Install and Configure Tailwind CSS",
+            "description": "Add Tailwind CSS to the Next.js project and configure it for styling.",
+            "dependencies": [
+              1
+            ],
+            "details": "Install Tailwind CSS and its peer dependencies. Initialize Tailwind config files and update `tailwind.config.js` and `globals.css` as per Tailwind documentation.",
+            "status": "done",
+            "testStrategy": "Add a sample Tailwind class to a component and confirm styles are applied in the browser."
+          },
+          {
+            "id": 3,
+            "title": "Set Up Prisma ORM",
+            "description": "Install Prisma, initialize it in the project, and configure the database connection.",
+            "dependencies": [
+              1
+            ],
+            "details": "Install Prisma CLI and client, run `npx prisma init` to create the Prisma schema, and configure the database URL in `.env`.",
+            "status": "done",
+            "testStrategy": "Run `npx prisma generate` and `npx prisma migrate dev` to ensure Prisma connects and migrates successfully."
+          },
+          {
+            "id": 4,
+            "title": "Install and Configure NextAuth.js for Authentication",
+            "description": "Add NextAuth.js to the project and set up basic authentication providers.",
+            "dependencies": [
+              1,
+              3
+            ],
+            "details": "Install NextAuth.js and configure an authentication route in the `app/api/auth` directory. Set up at least one provider and update environment variables as needed.",
+            "status": "done",
+            "testStrategy": "Access a protected route and verify authentication flow works (sign in, sign out)."
+          },
+          {
+            "id": 5,
+            "title": "Set Up i18next for Internationalization and Initialize Git Repository",
+            "description": "Install i18next and configure it for EN, ES, and FR locales. Initialize a Git repository and make the initial commit.",
+            "dependencies": [
+              1
+            ],
+            "details": "Install i18next and related packages, configure language resources for English, Spanish, and French. Run `git init`, add all files, and create the initial commit.",
+            "status": "pending",
+            "testStrategy": "Switch between locales in the app to verify translations render. Confirm Git history shows the initial commit."
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Design and Implement Database Schema",
+        "description": "Create the database schema for the application using Prisma, including models for events, athletes, poules, and direct elimination brackets.",
+        "details": "1. Design schema for Event, Athlete, Poule, DirectElimination, and User models.\n2. Implement schema using Prisma's schema language.\n3. Include fields for multilingual support (EN, ES, FR) where necessary.\n4. Set up relationships between models (e.g., Event has many Athletes).\n5. Create initial migrations.\n6. Set up both PostgreSQL (for production) and SQLite (for local/offline) configurations.",
+        "testStrategy": "Run migrations on both PostgreSQL and SQLite. Verify schema integrity using Prisma Studio.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Implement User Authentication",
+        "description": "Set up user authentication using NextAuth.js with email/password and Google OAuth options.",
+        "details": "1. Configure NextAuth.js providers for email/password and Google OAuth.\n2. Implement sign-in, sign-up, and sign-out functionality.\n3. Create protected API routes and pages.\n4. Implement role-based authorization (Admin, Referee, Public).\n5. Set up secure session handling with JWT.\n6. Implement password hashing using bcrypt.\n7. Ensure HTTPS is enforced in production.",
+        "testStrategy": "Test user registration, login, and logout flows. Verify role-based access control. Conduct security testing for authentication endpoints.",
+        "priority": "high",
+        "dependencies": [
+          1,
+          2
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Create Event Management CRUD Operations",
+        "description": "Implement Create, Read, Update, and Delete operations for fencing events.",
+        "details": "1. Create API routes for CRUD operations on events.\n2. Implement server-side validation for event data.\n3. Design and implement UI components for event management.\n4. Integrate with Prisma ORM for database operations.\n5. Implement error handling and success messages.\n6. Add functionality to set one event as 'active' per organization.",
+        "testStrategy": "Unit test API routes. Integration test UI components with API. Verify data persistence and retrieval from the database.",
+        "priority": "high",
+        "dependencies": [
+          2,
+          3
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Implement Roster Handling and Import",
+        "description": "Create functionality to import athlete rosters from FIE XML or CSV files, and allow manual editing.",
+        "details": "1. Implement file upload functionality for XML and CSV.\n2. Create parsers for FIE XML and CSV formats.\n3. Develop API routes for roster import and CRUD operations.\n4. Design and implement UI for roster management.\n5. Add functionality to mark athletes as present/absent.\n6. Implement duplicate detection and prevention.\n7. Use a library like 'xml2js' for XML parsing and 'csv-parse' for CSV parsing.",
+        "testStrategy": "Test import functionality with various XML and CSV files. Verify correct parsing and data storage. Test duplicate detection and manual editing features.",
+        "priority": "high",
+        "dependencies": [
+          2,
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Develop Formula Setup Interface",
+        "description": "Create an interface for setting up the tournament formula, including poule rounds and direct elimination settings.",
+        "details": "1. Design and implement UI for formula setup.\n2. Create API routes for saving and retrieving formula settings.\n3. Implement logic for toggling third-place bout.\n4. Add functionality to choose bracket size and set percentage of athletes advancing.\n5. Integrate formula settings with event management.\n6. Use React Hook Form for form management and Zod for validation.",
+        "testStrategy": "Unit test formula calculation logic. Integration test UI with API. Verify that changes in formula settings are correctly reflected in the tournament structure.",
+        "priority": "medium",
+        "dependencies": [
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Implement Poule Generation and Management",
+        "description": "Develop functionality to automatically generate poules with club/country separation and allow manual adjustments.",
+        "details": "1. Implement algorithm for automatic poule distribution with club/country separation.\n2. Create API routes for poule generation and management.\n3. Design and implement UI for poule display and manual adjustment.\n4. Add drag-and-drop functionality for manual poule adjustments using react-beautiful-dnd.\n5. Implement assignment of pistes, times, and referees to poules.\n6. Integrate with formula settings for determining number of poules and fencers per poule.",
+        "testStrategy": "Unit test poule generation algorithm. Test manual adjustment functionality. Verify club/country separation in generated poules.",
+        "priority": "high",
+        "dependencies": [
+          5,
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Develop Score Entry System for Poules",
+        "description": "Create a user-friendly interface for entering and managing scores in poule rounds.",
+        "details": "1. Design and implement UI for score entry (grid UI per poule and per bout).\n2. Create API routes for score submission and retrieval.\n3. Implement real-time score calculation (victories, indicators, quotas).\n4. Add functionality to lock poules when complete.\n5. Implement validation to ensure all scores are entered correctly.\n6. Use React Query for efficient data fetching and caching.",
+        "testStrategy": "Test score entry for various scenarios. Verify real-time calculation accuracy. Test poule locking functionality.",
+        "priority": "high",
+        "dependencies": [
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Implement Overall Ranking Calculation",
+        "description": "Develop system to calculate and display overall rankings based on poule results.",
+        "details": "1. Implement ranking calculation algorithm based on FIE rules.\n2. Create API route for retrieving current rankings.\n3. Design and implement UI for displaying rankings.\n4. Integrate ranking calculation with poule score entry system.\n5. Implement sorting and filtering options for rankings display.\n6. Ensure real-time updates of rankings as scores are entered.",
+        "testStrategy": "Unit test ranking calculation algorithm. Verify ranking updates in real-time as scores change. Test edge cases in ranking scenarios.",
+        "priority": "high",
+        "dependencies": [
+          8
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Develop Direct Elimination Bracket System",
+        "description": "Create functionality for generating, displaying, and managing direct elimination brackets.",
+        "details": "1. Implement algorithm for seeding and generating DE brackets (32/64/128 with byes).\n2. Create API routes for bracket generation and management.\n3. Design and implement interactive visual bracket UI using a library like react-bracket.\n4. Add functionality to assign piste/time/referee per bout.\n5. Implement score entry for DE bouts with automatic winner advancement.\n6. Integrate with overall rankings for initial seeding.",
+        "testStrategy": "Unit test bracket generation algorithm. Test bracket UI for different sizes. Verify correct advancement of winners and handling of byes.",
+        "priority": "high",
+        "dependencies": [
+          9
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 11,
+        "title": "Implement PDF Report Generation",
+        "description": "Develop functionality to generate PDF reports for poule sheets, match slips, brackets, and final rankings.",
+        "details": "1. Use a library like react-pdf or jsPDF for PDF generation.\n2. Create templates for each report type (poule sheets, match slips, brackets, rankings).\n3. Implement API routes for triggering report generation.\n4. Design UI for requesting and downloading reports.\n5. Ensure generated PDFs match Engarde layouts.\n6. Implement caching mechanism to avoid regenerating unchanged reports.",
+        "testStrategy": "Verify PDF generation for all report types. Compare generated PDFs with Engarde outputs for layout consistency. Test PDF generation with large datasets.",
+        "priority": "medium",
+        "dependencies": [
+          7,
+          8,
+          9,
+          10
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 12,
+        "title": "Develop Responsive UI Design",
+        "description": "Ensure the application is fully responsive and optimized for both desktop and mobile devices.",
+        "details": "1. Implement responsive design using Tailwind CSS utility classes.\n2. Create mobile-first layouts for referee views.\n3. Optimize touch interactions for mobile devices.\n4. Implement responsive data tables using a library like react-table.\n5. Ensure all forms and interactive elements are usable on small screens.\n6. Test and optimize for various screen sizes and orientations.",
+        "testStrategy": "Test on multiple devices and browsers (Chrome, Firefox, Safari iOS, Android Chrome). Use Chrome DevTools device emulation for preliminary testing.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 13,
+        "title": "Implement Internationalization (i18n)",
+        "description": "Set up internationalization for the UI with support for English, Spanish, and French languages.",
+        "details": "1. Set up react-i18next for managing translations.\n2. Create translation files for English, Spanish, and French.\n3. Implement language switching functionality in the UI.\n4. Ensure all UI elements, including dynamic content, are translatable.\n5. Set up a workflow for managing and updating translations.\n6. Implement right-to-left (RTL) support for future language additions.",
+        "testStrategy": "Verify all UI elements in each supported language. Test language switching functionality. Ensure no hard-coded strings are present in the UI.",
+        "priority": "medium",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 14,
+        "title": "Implement Real-time Updates",
+        "description": "Add real-time update functionality for live results and brackets using WebSockets.",
+        "details": "1. Set up Socket.IO for WebSocket communication.\n2. Implement real-time update logic for scores, rankings, and brackets.\n3. Create fallback polling mechanism for environments where WebSockets are not available.\n4. Optimize for performance with large numbers of concurrent users.\n5. Implement reconnection logic for handling temporary disconnections.\n6. Ensure real-time updates work across different user roles and permissions.",
+        "testStrategy": "Test real-time updates with multiple concurrent users. Verify fallback to polling when WebSockets are unavailable. Stress test with high numbers of simultaneous connections.",
+        "priority": "medium",
+        "dependencies": [
+          1,
+          8,
+          9,
+          10
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 15,
+        "title": "Develop Public Results Display",
+        "description": "Create public-facing pages for displaying live results and brackets without requiring login.",
+        "details": "1. Design and implement public results pages.\n2. Create API routes for fetching public data.\n3. Implement caching mechanism to reduce database load.\n4. Ensure public pages auto-refresh with real-time updates.\n5. Optimize pages for fast loading and minimal data usage.\n6. Implement SEO best practices for public pages.",
+        "testStrategy": "Test public page accessibility without login. Verify real-time updates on public pages. Perform load testing to ensure scalability for high traffic.",
+        "priority": "medium",
+        "dependencies": [
+          9,
+          10,
+          14
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 16,
+        "title": "Implement Data Integrity and Backup System",
+        "description": "Develop a system for maintaining data integrity, including audit logs and daily database backups.",
+        "details": "1. Implement audit logging for all data modifications.\n2. Set up daily automated backups of the PostgreSQL database.\n3. Implement a backup rotation and retention policy.\n4. Create a restore process for recovering from backups.\n5. Implement data validation checks to ensure data consistency.\n6. Set up alerts for any data integrity issues or failed backups.",
+        "testStrategy": "Verify audit log accuracy. Test backup and restore processes. Simulate various data integrity scenarios and verify system response.",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 17,
+        "title": "Implement Offline Mode (PWA)",
+        "description": "Develop Progressive Web App (PWA) functionality for offline operation.",
+        "details": "1. Set up Service Worker for offline caching of assets and API responses.\n2. Implement IndexedDB for local data storage.\n3. Create sync queue for operations performed offline.\n4. Implement conflict resolution for data synced after coming online.\n5. Ensure seamless transition between online and offline modes.\n6. Use Workbox library to simplify Service Worker management.",
+        "testStrategy": "Test application functionality in offline mode. Verify data syncing when coming back online. Test various network conditions using Chrome DevTools.",
+        "priority": "low",
+        "dependencies": [
+          1,
+          2,
+          12
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 18,
+        "title": "Conduct Performance Optimization and Testing",
+        "description": "Optimize application performance and conduct thorough testing to ensure smooth operation with large datasets.",
+        "details": "1. Perform code review and refactoring for optimization.\n2. Implement lazy loading and code splitting to improve initial load times.\n3. Optimize database queries and add necessary indexes.\n4. Conduct performance profiling using Chrome DevTools and React Profiler.\n5. Implement server-side rendering (SSR) for critical pages.\n6. Set up monitoring and error tracking using a service like Sentry.\n7. Conduct load testing to verify handling of 300+ fencers, 50 poules, 128-tableau.",
+        "testStrategy": "Conduct performance benchmarks. Test application with large datasets. Verify WCAG AA compliance for public pages. Conduct cross-browser and cross-device testing.",
+        "priority": "high",
+        "dependencies": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-06-20T03:45:22.475Z",
+      "updated": "2025-06-20T04:07:40.415Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

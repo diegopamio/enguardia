@@ -1,0 +1,97 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// User authentication
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      UserRole @default(PUBLIC)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  createdEvents Event[]
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  REFEREE
+  PUBLIC
+}
+
+// Tournament Event
+model Event {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  weapon      Weapon
+  category    String   // e.g., "Senior Men's Epee"
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  createdById String
+  athletes    Athlete[]
+  poules      Poule[]
+
+  @@map("events")
+}
+
+enum Weapon {
+  EPEE
+  FOIL
+  SABRE
+}
+
+// Athletes/Fencers
+model Athlete {
+  id          String  @id @default(cuid())
+  firstName   String
+  lastName    String
+  club        String?
+  country     String?
+  licenseNum  String?
+  isPresent   Boolean @default(true)
+  seedNumber  Int?
+  
+  // Relations
+  event       Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId     String
+  
+  @@map("athletes")
+}
+
+// Poule (Pool) rounds
+model Poule {
+  id        String   @id @default(cuid())
+  number    Int
+  piste     String?
+  referee   String?
+  startTime DateTime?
+  isLocked  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  // Relations
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId   String
+  
+  @@map("poules")
+}

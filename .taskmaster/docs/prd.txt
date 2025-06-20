@@ -1,0 +1,182 @@
+# Web-Based Engarde Clone – **Product Requirements Document (PRD) & Roadmap**
+
+> **Changes requested**
+>
+> * Backend will also be **Next.js** (API Routes / Server Actions). No NestJS.
+> * Initial UI languages: **English, Spanish & French**.
+> * Output is fully in **Markdown**.
+
+---
+
+## 1 · Vision
+
+Create a modern, responsive web application that reproduces **all major features of the Engarde desktop program** for fencing‑tournament management, while adding cloud advantages:
+
+* multi‑user, real‑time access from any device
+* sign‑in via e‑mail / password *or* Google
+* multilingual UI (EN · ES · FR at launch)
+* optional offline operation (PWA) so events keep running even if the venue’s internet fails
+
+Target audiences (progressive rollout):
+
+| Audience                      | Phase    | Key Benefit                       |
+| ----------------------------- | -------- | --------------------------------- |
+| Tournament directors / admins | **MVP**  | Full control of event workflow    |
+| Referees                      | Phase 2  | Enter scores from piste on mobile |
+| Athletes & spectators         | Phase 2+ | Live brackets & rankings          |
+
+---
+
+## 2 · Goals & Scope
+
+| Goal                                                                  | Included in MVP? | Notes                                  |
+| --------------------------------------------------------------------- | ---------------- | -------------------------------------- |
+| Full tournament workflow – registration → poules → DE → final ranking | ✔️               | Individuals first; team events Phase 3 |
+| Import FIE XML / CSV rosters                                          | ✔️               | Export “nice‑to‑have”, Phase 3         |
+| Auto‑generate poules with perfect club / country separation           | ✔️               | Manual tweaks allowed                  |
+| Auto‑seed & build DE brackets (32/64/128, byes)                       | ✔️               | Classic formula first                  |
+| PDF/print reports: poule sheets, match slips, brackets, rankings      | ✔️               | Same layout as Engarde                 |
+| Role‑based auth (Admin, Referee, Public)                              | ✔️               | Google & e‑mail login                  |
+| Real‑time updates (WebSockets)                                        | Phase 2          | Polling fallback in MVP                |
+| Responsive design                                                     | ✔️               | Mobile‑first for referee views         |
+| Offline / PWA                                                         | Phase 3          | Read‑only cache in MVP                 |
+| **Multilingual UI (EN · ES · FR)**                                    | **Phase 2**      | `react‑i18next` ready from day 1       |
+
+---
+
+## 3 · User Roles & Permissions
+
+| Role           | Capabilities                                                                                                         |
+| -------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **Admin / TD** | Create events, import XML, edit entries, assign pistes/times/referees, override any result, generate reports/exports |
+| **Referee**    | View own poules & bouts, enter scores, confirm winner                                                                |
+| **Public**     | Live read‑only results & brackets – no login                                                                         |
+
+---
+
+## 4 · Functional Requirements (MVP)
+
+1. **Event Management**
+
+   * CRUD tournament metadata (name, dates, weapon, category).
+   * Multiple stored events; one “active” at a time per org in MVP.
+
+2. **Roster Handling**
+
+   * Import FIE XML or CSV; manual add/edit/delete athletes.
+   * Mark present/absent; prevent duplicates.
+
+3. **Formula Setup**
+
+   * Classic flow: 1 poule round → DE.
+   * Toggle third‑place bout; choose bracket size; set % advancing.
+
+4. **Poules**
+
+   * Auto distribution with perfect separation by club/country.
+   * Manual drag‑and‑drop adjustments.
+   * Assign pistes, times, referees.
+   * Generate printable poule sheets (PDF).
+
+5. **Score Entry – Poules**
+
+   * Grid UI per poule or per bout.
+   * Auto compute victories, indicators, quotas.
+   * Lock poule when complete.
+
+6. **Overall Ranking**
+
+   * Instant calculation from all poules.
+   * Printable provisional ranking.
+
+7. **Direct Elimination**
+
+   * Auto bracket seeding; support byes.
+   * Interactive visual bracket.
+   * Assign piste/time/referee per bout.
+   * Enter bout scores; winners advance automatically.
+
+8. **Reports & Exports**
+
+   * Poule sheets, match slips, brackets, final ranking (PDF).
+   * XML export (Phase 3).
+   * Public live pages auto‑refresh.
+
+9. **Authentication & Security**
+
+   * `NextAuth.js` with e‑mail/password + Google OAuth.
+   * Secure cookies/JWT; BCrypt; HTTPS everywhere.
+
+---
+
+## 5 · Non‑Functional Requirements
+
+* **Performance** – smoothly handle 300+ fencers, 50 poules, 128‑tableau.
+* **Cross‑device** – tested on desktop Chrome/Firefox, Safari iOS, Android Chrome.
+* **Accessibility** – WCAG AA for public pages.
+* **Data integrity** – audit log; daily DB backup.
+
+---
+
+## 6 · Architecture Overview
+
+```
+┌───────────────────────────────────────────────┐
+│                 Next.js App                  │
+│  • React pages & components                  │
+│  • API Routes / Server Actions (backend)     │
+│  • i18n (EN · ES · FR)                       │
+│  • Service Worker (PWA, Phase 3)             │
+│  • Socket.io handler (Phase 2)               │
+└────────────┬──────────────────────────────────┘
+             │ Prisma ORM
+┌────────────▼────────────┐
+│ PostgreSQL (prod)       │
+│ SQLite (local / offline)│
+└─────────────────────────┘
+```
+
+* **Hosting** – Vercel (static + serverless API routes) with managed Postgres (Supabase, Railway, etc.).
+* **Real‑time** – Socket.io or Next Server Components streaming; fallback polling.
+* **Offline** – Service Worker caches assets + IndexedDB queue (Phase 3).
+
+---
+
+## 7 · Roadmap
+
+| Phase                     | Duration   | Key Deliverables                                                                          |
+| ------------------------- | ---------- | ----------------------------------------------------------------------------------------- |
+| **1 – MVP (Admin‑only)**  | 8–10 weeks | Event CRUD, XML import, poules, DE, PDF reports, basic auth, responsive UI                |
+| **2 – Multi‑user & Live** | +6 weeks   | Referee role, WebSockets, live public pages, full i18n (EN · ES · FR)                     |
+| **3 – Advanced Parity**   | +8 weeks   | Team events, smart referee allocation, full PWA offline sync, XML export, branded reports |
+| **4 – Nice‑to‑haves**     | ongoing    | Native mobile wrapper, analytics, ranking‑API integration, other combat sports            |
+
+---
+
+## 8 · Risks & Mitigations
+
+| Risk                              | Impact        | Mitigation                                           |
+| --------------------------------- | ------------- | ---------------------------------------------------- |
+| Single‑dev bandwidth              | Schedule slip | Strict MVP scope, reuse libraries, weekly scope cuts |
+| Rule edge‑cases (e.g., repechage) | Wrong results | Unit tests comparing to Engarde outputs              |
+| Offline complexity                | Tech debt     | Start with read‑only cache; add sync queue later     |
+| Data loss during event            | High          | Auto‑save, local SQLite backup, daily export         |
+
+---
+
+## 9 · Success Metrics
+
+* ✅ Run **one real tournament** end‑to‑end without falling back to Engarde desktop.
+* ⏱️ Admin generates poules & DE **in < 5 min** post‑import.
+* 📱 Referee records a bout **in ≤ 15 s** on mobile.
+* 🖨️ Reports visually match Engarde originals.
+* 🌐 99.9 % uptime during event window.
+
+---
+
+### Next Steps
+
+1. Bootstrap Next.js repo (App Router) + Tailwind + Prisma + NextAuth.
+2. Design DB schema; create initial seed fixtures.
+3. Build Event & Roster UI.
+4. Prototype poule generator; cross‑check against Engarde outputs.
