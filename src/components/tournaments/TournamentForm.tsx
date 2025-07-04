@@ -1,8 +1,24 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useRoleCheck } from "@/lib/auth-client"
-import { Tournament } from "./TournamentManagement"
+
+// Tournament type based on current schema
+interface Tournament {
+  id: string
+  name: string
+  description?: string | null
+  startDate: Date
+  endDate: Date
+  venue?: string | null
+  status: string
+  isPublic: boolean
+  isActive: boolean
+  organizationId: string
+  createdAt: Date
+  updatedAt: Date
+  createdById: string
+}
 
 interface TournamentFormProps {
   mode: "create" | "edit"
@@ -18,36 +34,16 @@ interface FormData {
   description: string
   startDate: string
   endDate: string
-  registrationOpenDate: string
-  registrationCloseDate: string
   venue: string
   isActive: boolean
   status: string
-  maxParticipants: string
+  isPublic: boolean
   organizationId: string
   translations: {
     [locale: string]: {
       name: string
       description: string
     }
-  }
-}
-
-const initialFormData: FormData = {
-  name: "",
-  description: "",
-  startDate: "",
-  endDate: "",
-  registrationOpenDate: "",
-  registrationCloseDate: "",
-  venue: "",
-  isActive: false,
-  status: "DRAFT",
-  maxParticipants: "",
-  organizationId: "",
-  translations: {
-    es: { name: "", description: "" },
-    fr: { name: "", description: "" }
   }
 }
 
@@ -59,7 +55,24 @@ export default function TournamentForm({
   loading,
   organizationId
 }: TournamentFormProps) {
-  const { isSystemAdmin, isOrgAdmin, session } = useRoleCheck()
+  const { isSystemAdmin, session } = useRoleCheck()
+  
+  const initialFormData: FormData = {
+    name: "",
+    description: "",
+    startDate: "",
+    endDate: "",
+    venue: "",
+    isActive: false,
+    status: "DRAFT",
+    isPublic: false,
+    organizationId: organizationId || "",
+    translations: {
+      es: { name: "", description: "" },
+      fr: { name: "", description: "" }
+    }
+  }
+
   const [formData, setFormData] = useState<FormData>(initialFormData)
   const [errors, setErrors] = useState<{[key: string]: string}>({})
   const [showTranslations, setShowTranslations] = useState(false)
@@ -72,12 +85,10 @@ export default function TournamentForm({
         description: tournament.description || "",
         startDate: tournament.startDate ? new Date(tournament.startDate).toISOString().slice(0, 16) : "",
         endDate: tournament.endDate ? new Date(tournament.endDate).toISOString().slice(0, 16) : "",
-        registrationOpenDate: tournament.registrationOpenDate ? new Date(tournament.registrationOpenDate).toISOString().slice(0, 16) : "",
-        registrationCloseDate: tournament.registrationCloseDate ? new Date(tournament.registrationCloseDate).toISOString().slice(0, 16) : "",
         venue: tournament.venue || "",
         isActive: tournament.isActive || false,
         status: tournament.status || "DRAFT",
-        maxParticipants: tournament.maxParticipants?.toString() || "",
+        isPublic: tournament.isPublic || false,
         organizationId: tournament.organizationId || organizationId || "",
         translations: {
           es: { name: "", description: "" },
@@ -138,14 +149,6 @@ export default function TournamentForm({
       newErrors.endDate = "End date is required"
     }
 
-    if (!formData.registrationOpenDate) {
-      newErrors.registrationOpenDate = "Registration open date is required"
-    }
-
-    if (!formData.registrationCloseDate) {
-      newErrors.registrationCloseDate = "Registration close date is required"
-    }
-
     if (!formData.organizationId) {
       newErrors.organizationId = "Organization is required"
     }
@@ -155,23 +158,6 @@ export default function TournamentForm({
       if (new Date(formData.startDate) >= new Date(formData.endDate)) {
         newErrors.endDate = "End date must be after start date"
       }
-    }
-
-    if (formData.registrationOpenDate && formData.registrationCloseDate) {
-      if (new Date(formData.registrationOpenDate) >= new Date(formData.registrationCloseDate)) {
-        newErrors.registrationCloseDate = "Registration close date must be after registration open date"
-      }
-    }
-
-    if (formData.registrationCloseDate && formData.startDate) {
-      if (new Date(formData.registrationCloseDate) > new Date(formData.startDate)) {
-        newErrors.registrationCloseDate = "Registration must close before tournament starts"
-      }
-    }
-
-    // Max participants validation
-    if (formData.maxParticipants && (parseInt(formData.maxParticipants) < 2 || parseInt(formData.maxParticipants) > 1000)) {
-      newErrors.maxParticipants = "Max participants must be between 2 and 1000"
     }
 
     setErrors(newErrors)
@@ -189,15 +175,13 @@ export default function TournamentForm({
     // Prepare submission data
     const submissionData = {
       name: formData.name.trim(),
-      description: formData.description.trim() || undefined,
+      description: formData.description.trim() || null,
       startDate: new Date(formData.startDate).toISOString(),
       endDate: new Date(formData.endDate).toISOString(),
-      registrationOpenDate: new Date(formData.registrationOpenDate).toISOString(),
-      registrationCloseDate: new Date(formData.registrationCloseDate).toISOString(),
-      venue: formData.venue.trim() || undefined,
+      venue: formData.venue.trim() || null,
       isActive: formData.isActive,
       status: formData.status,
-      maxParticipants: formData.maxParticipants ? parseInt(formData.maxParticipants) : undefined,
+      isPublic: formData.isPublic,
       organizationId: formData.organizationId,
       createdById: session?.user?.id,
       translations: showTranslations ? formData.translations : undefined
@@ -267,7 +251,7 @@ export default function TournamentForm({
                 value={formData.description}
                 onChange={(e) => handleInputChange("description", e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Describe the tournament, special rules, or other relevant information..."
+                placeholder="Brief description of the tournament..."
               />
             </div>
           </div>
@@ -280,7 +264,7 @@ export default function TournamentForm({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
-                Start Date & Time *
+                Start Date *
               </label>
               <input
                 type="datetime-local"
@@ -296,7 +280,7 @@ export default function TournamentForm({
 
             <div>
               <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
-                End Date & Time *
+                End Date *
               </label>
               <input
                 type="datetime-local"
@@ -308,38 +292,6 @@ export default function TournamentForm({
                 }`}
               />
               {errors.endDate && <p className="mt-1 text-sm text-red-600">{errors.endDate}</p>}
-            </div>
-
-            <div>
-              <label htmlFor="registrationOpenDate" className="block text-sm font-medium text-gray-700 mb-1">
-                Registration Opens *
-              </label>
-              <input
-                type="datetime-local"
-                id="registrationOpenDate"
-                value={formData.registrationOpenDate}
-                onChange={(e) => handleInputChange("registrationOpenDate", e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.registrationOpenDate ? "border-red-300" : "border-gray-300"
-                }`}
-              />
-              {errors.registrationOpenDate && <p className="mt-1 text-sm text-red-600">{errors.registrationOpenDate}</p>}
-            </div>
-
-            <div>
-              <label htmlFor="registrationCloseDate" className="block text-sm font-medium text-gray-700 mb-1">
-                Registration Closes *
-              </label>
-              <input
-                type="datetime-local"
-                id="registrationCloseDate"
-                value={formData.registrationCloseDate}
-                onChange={(e) => handleInputChange("registrationCloseDate", e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.registrationCloseDate ? "border-red-300" : "border-gray-300"
-                }`}
-              />
-              {errors.registrationCloseDate && <p className="mt-1 text-sm text-red-600">{errors.registrationCloseDate}</p>}
             </div>
           </div>
         </div>
@@ -368,26 +320,20 @@ export default function TournamentForm({
               </select>
             </div>
 
-            <div>
-              <label htmlFor="maxParticipants" className="block text-sm font-medium text-gray-700 mb-1">
-                Max Participants
-              </label>
+            <div className="flex items-center">
               <input
-                type="number"
-                id="maxParticipants"
-                min="2"
-                max="1000"
-                value={formData.maxParticipants}
-                onChange={(e) => handleInputChange("maxParticipants", e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.maxParticipants ? "border-red-300" : "border-gray-300"
-                }`}
-                placeholder="Leave empty for unlimited"
+                type="checkbox"
+                id="isPublic"
+                checked={formData.isPublic}
+                onChange={(e) => handleInputChange("isPublic", e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
-              {errors.maxParticipants && <p className="mt-1 text-sm text-red-600">{errors.maxParticipants}</p>}
+              <label htmlFor="isPublic" className="ml-2 block text-sm text-gray-700">
+                Public tournament
+              </label>
             </div>
 
-            {(isSystemAdmin || isOrgAdmin) && (
+            {isSystemAdmin() && (
               <div className="flex items-center">
                 <input
                   type="checkbox"
