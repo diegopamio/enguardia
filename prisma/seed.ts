@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole, Weapon, MembershipType, MembershipStatus } from '@prisma/client'
+import { PrismaClient, UserRole, Weapon, MembershipType, MembershipStatus, TournamentStatus, CompetitionStatus, PhaseType, PhaseStatus } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -136,6 +136,32 @@ async function main() {
     },
   })
 
+  const athlete4 = await prisma.athlete.upsert({
+    where: { id: 'athlete-4' },
+    update: {},
+    create: {
+      id: 'athlete-4',
+      firstName: 'Paolo',
+      lastName: 'Rossi',
+      dateOfBirth: new Date('1996-05-12'),
+      nationality: 'ITA',
+      fieId: 'ITA22222',
+    },
+  })
+
+  const athlete5 = await prisma.athlete.upsert({
+    where: { id: 'athlete-5' },
+    update: {},
+    create: {
+      id: 'athlete-5',
+      firstName: 'Sofia',
+      lastName: 'Petrov',
+      dateOfBirth: new Date('1994-09-30'),
+      nationality: 'RUS',
+      fieId: 'RUS33333',
+    },
+  })
+
   console.log('✅ Created global athletes')
 
   // Set athlete weapon specializations
@@ -150,6 +176,12 @@ async function main() {
   })
   await prisma.athleteWeapon.create({
     data: { athleteId: athlete3.id, weapon: Weapon.EPEE }
+  })
+  await prisma.athleteWeapon.create({
+    data: { athleteId: athlete4.id, weapon: Weapon.FOIL }
+  })
+  await prisma.athleteWeapon.create({
+    data: { athleteId: athlete5.id, weapon: Weapon.SABRE }
   })
 
   // Create athlete-organization memberships
@@ -185,6 +217,22 @@ async function main() {
       status: MembershipStatus.ACTIVE,
     },
   })
+  await prisma.athleteOrganization.create({
+    data: {
+      athleteId: athlete4.id,
+      organizationId: organization1.id,
+      membershipType: MembershipType.MEMBER,
+      status: MembershipStatus.ACTIVE,
+    },
+  })
+  await prisma.athleteOrganization.create({
+    data: {
+      athleteId: athlete5.id,
+      organizationId: organization2.id,
+      membershipType: MembershipType.MEMBER,
+      status: MembershipStatus.ACTIVE,
+    },
+  })
 
   console.log('✅ Created athlete-organization memberships')
 
@@ -209,38 +257,176 @@ async function main() {
 
   console.log('✅ Created clubs')
 
-  // Create demo events (private to each organization)
-  const event1 = await prisma.event.create({
+  // Create demo tournaments (new architecture)
+  const tournament1 = await prisma.tournament.create({
     data: {
-      name: 'Madrid Open 2024',
-      description: 'Annual open tournament in Madrid',
-      weapon: Weapon.EPEE,
-      category: 'Senior Mixed',
-      startDate: new Date('2024-09-15'),
-      endDate: new Date('2024-09-15'),
+      name: 'Copa de Navidad 2024',
+      description: 'Annual Christmas tournament featuring multiple weapon competitions',
+      startDate: new Date('2024-12-15T09:00:00.000Z'),
+      endDate: new Date('2024-12-15T20:00:00.000Z'),
       venue: 'Polideportivo Municipal Madrid',
+      status: TournamentStatus.REGISTRATION_OPEN,
+      isActive: true,
+      isPublic: true,
       organizationId: organization1.id,
       createdById: orgAdmin1.id,
-      isPublic: true, // Other orgs can see results
     },
   })
 
-  const event2 = await prisma.event.create({
+  const tournament2 = await prisma.tournament.create({
     data: {
-      name: 'Bay Area Championship',
-      description: 'Regional sabre championship',
-      weapon: Weapon.SABRE,
-      category: 'Senior Men',
-      startDate: new Date('2024-10-20'),
-      endDate: new Date('2024-10-20'),
+      name: 'Bay Area Regional Championship',
+      description: 'Regional championship for senior fencers in the San Francisco Bay Area',
+      startDate: new Date('2024-11-20T08:00:00.000Z'),
+      endDate: new Date('2024-11-20T18:00:00.000Z'),
       venue: 'SF Olympic Club',
+      status: TournamentStatus.IN_PROGRESS,
+      isActive: false,
+      isPublic: false,
       organizationId: organization2.id,
       createdById: orgAdmin2.id,
-      isPublic: false, // Private event
     },
   })
 
-  console.log('✅ Created events')
+  const tournament3 = await prisma.tournament.create({
+    data: {
+      name: 'Madrid Youth Open 2024',
+      description: 'Open tournament for youth fencers (U17 and U20 categories)',
+      startDate: new Date('2024-10-05T09:00:00.000Z'),
+      endDate: new Date('2024-10-05T17:00:00.000Z'),
+      venue: 'Centro Deportivo La Elipa',
+      status: TournamentStatus.COMPLETED,
+      isActive: false,
+      isPublic: true,
+      organizationId: organization1.id,
+      createdById: orgAdmin1.id,
+    },
+  })
+
+  console.log('✅ Created tournaments')
+
+  // Create competitions within tournaments
+  const competition1 = await prisma.competition.create({
+    data: {
+      tournamentId: tournament1.id,
+      name: 'Epee Senior Men',
+      weapon: Weapon.EPEE,
+      category: 'Senior Men',
+      status: CompetitionStatus.REGISTRATION_OPEN,
+      maxParticipants: 32,
+    },
+  })
+
+  const competition2 = await prisma.competition.create({
+    data: {
+      tournamentId: tournament1.id,
+      name: 'Epee Senior Women',
+      weapon: Weapon.EPEE,
+      category: 'Senior Women',
+      status: CompetitionStatus.REGISTRATION_OPEN,
+      maxParticipants: 24,
+    },
+  })
+
+  const competition3 = await prisma.competition.create({
+    data: {
+      tournamentId: tournament1.id,
+      name: 'Foil Senior Mixed',
+      weapon: Weapon.FOIL,
+      category: 'Senior Mixed',
+      status: CompetitionStatus.REGISTRATION_OPEN,
+      maxParticipants: 40,
+    },
+  })
+
+  const competition4 = await prisma.competition.create({
+    data: {
+      tournamentId: tournament2.id,
+      name: 'Sabre Senior Men',
+      weapon: Weapon.SABRE,
+      category: 'Senior Men',
+      status: CompetitionStatus.IN_PROGRESS,
+      maxParticipants: 28,
+    },
+  })
+
+  const competition5 = await prisma.competition.create({
+    data: {
+      tournamentId: tournament2.id,
+      name: 'Sabre Senior Women',
+      weapon: Weapon.SABRE,
+      category: 'Senior Women',
+      status: CompetitionStatus.IN_PROGRESS,
+      maxParticipants: 20,
+    },
+  })
+
+  const competition6 = await prisma.competition.create({
+    data: {
+      tournamentId: tournament3.id,
+      name: 'Foil U17 Men',
+      weapon: Weapon.FOIL,
+      category: 'U17 Men',
+      status: CompetitionStatus.COMPLETED,
+      maxParticipants: 16,
+    },
+  })
+
+  const competition7 = await prisma.competition.create({
+    data: {
+      tournamentId: tournament3.id,
+      name: 'Epee U20 Women',
+      weapon: Weapon.EPEE,
+      category: 'U20 Women',
+      status: CompetitionStatus.COMPLETED,
+      maxParticipants: 12,
+    },
+  })
+
+  console.log('✅ Created competitions')
+
+  // Create phases for competitions
+  const phase1 = await prisma.phase.create({
+    data: {
+      competitionId: competition1.id,
+      name: 'Poules',
+      phaseType: PhaseType.POULE,
+      sequenceOrder: 1,
+      status: PhaseStatus.SCHEDULED,
+    },
+  })
+
+  const phase2 = await prisma.phase.create({
+    data: {
+      competitionId: competition1.id,
+      name: 'Direct Elimination',
+      phaseType: PhaseType.DIRECT_ELIMINATION,
+      sequenceOrder: 2,
+      status: PhaseStatus.SCHEDULED,
+    },
+  })
+
+  const phase3 = await prisma.phase.create({
+    data: {
+      competitionId: competition4.id,
+      name: 'Poules',
+      phaseType: PhaseType.POULE,
+      sequenceOrder: 1,
+      status: PhaseStatus.IN_PROGRESS,
+    },
+  })
+
+  const phase4 = await prisma.phase.create({
+    data: {
+      competitionId: competition4.id,
+      name: 'Classification',
+      phaseType: PhaseType.CLASSIFICATION,
+      sequenceOrder: 2,
+      status: PhaseStatus.SCHEDULED,
+    },
+  })
+
+  console.log('✅ Created phases')
 
   // Create translations for organizations
   await prisma.organizationTranslation.createMany({
@@ -306,46 +492,65 @@ async function main() {
     ]
   })
 
-  // Create translations for events
-  await prisma.eventTranslation.createMany({
+  // Create translations for tournaments
+  await prisma.tournamentTranslation.createMany({
     data: [
-      // Madrid Open 2024 translations
+      // Copa de Navidad 2024 translations
       {
-        eventId: event1.id,
+        tournamentId: tournament1.id,
         locale: 'en',
-        name: 'Madrid Open 2024',
-        description: 'Annual open tournament in Madrid'
+        name: 'Christmas Cup 2024',
+        description: 'Annual Christmas tournament featuring multiple weapon competitions'
       },
       {
-        eventId: event1.id,
+        tournamentId: tournament1.id,
         locale: 'es',
-        name: 'Abierto de Madrid 2024',
-        description: 'Torneo abierto anual en Madrid'
+        name: 'Copa de Navidad 2024',
+        description: 'Torneo anual de Navidad con competiciones de múltiples armas'
       },
       {
-        eventId: event1.id,
+        tournamentId: tournament1.id,
         locale: 'fr',
-        name: 'Open de Madrid 2024',
-        description: 'Tournoi ouvert annuel à Madrid'
+        name: 'Coupe de Noël 2024',
+        description: 'Tournoi annuel de Noël avec des compétitions d\'armes multiples'
       },
-      // Bay Area Championship translations
+      // Bay Area Regional Championship translations
       {
-        eventId: event2.id,
+        tournamentId: tournament2.id,
         locale: 'en',
-        name: 'Bay Area Championship',
-        description: 'Regional sabre championship'
+        name: 'Bay Area Regional Championship',
+        description: 'Regional championship for senior fencers in the San Francisco Bay Area'
       },
       {
-        eventId: event2.id,
+        tournamentId: tournament2.id,
         locale: 'es',
-        name: 'Campeonato del Área de la Bahía',
-        description: 'Campeonato regional de sable'
+        name: 'Campeonato Regional del Área de la Bahía',
+        description: 'Campeonato regional para esgrimistas senior en el Área de la Bahía de San Francisco'
       },
       {
-        eventId: event2.id,
+        tournamentId: tournament2.id,
         locale: 'fr',
-        name: 'Championnat de la région de la baie',
-        description: 'Championnat régional de sabre'
+        name: 'Championnat Régional de la Baie',
+        description: 'Championnat régional pour les escrimeurs seniors de la région de la baie de San Francisco'
+      },
+      // Madrid Youth Open 2024 translations
+      {
+        tournamentId: tournament3.id,
+        locale: 'en',
+        name: 'Madrid Youth Open 2024',
+        description: 'Open tournament for youth fencers (U17 and U20 categories)'
+      },
+      {
+        tournamentId: tournament3.id,
+        locale: 'es',
+        name: 'Abierto Juvenil de Madrid 2024',
+        description: 'Torneo abierto para esgrimistas jóvenes (categorías U17 y U20)'
+      },
+      {
+        tournamentId: tournament3.id,
+        locale: 'fr',
+        name: 'Open Jeunesse de Madrid 2024',
+        description: 'Tournoi ouvert pour les jeunes escrimeurs (catégories U17 et U20)'
       }
     ]
   })
@@ -369,10 +574,10 @@ async function main() {
       { actionKey: 'ATHLETE_WITHDRAWAL', locale: 'en', description: 'Athlete withdrew from event' },
       { actionKey: 'ATHLETE_WITHDRAWAL', locale: 'es', description: 'Atleta se retiró del evento' },
       { actionKey: 'ATHLETE_WITHDRAWAL', locale: 'fr', description: 'Athlète s\'est retiré de l\'événement' },
-      // Event creation translations
-      { actionKey: 'EVENT_CREATED', locale: 'en', description: 'Event created' },
-      { actionKey: 'EVENT_CREATED', locale: 'es', description: 'Evento creado' },
-      { actionKey: 'EVENT_CREATED', locale: 'fr', description: 'Événement créé' },
+      // Tournament creation translations
+      { actionKey: 'TOURNAMENT_CREATED', locale: 'en', description: 'Tournament created' },
+      { actionKey: 'TOURNAMENT_CREATED', locale: 'es', description: 'Torneo creado' },
+      { actionKey: 'TOURNAMENT_CREATED', locale: 'fr', description: 'Tournoi créé' },
       // User registration translations
       { actionKey: 'USER_REGISTERED', locale: 'en', description: 'User registered' },
       { actionKey: 'USER_REGISTERED', locale: 'es', description: 'Usuario registrado' },
@@ -380,7 +585,7 @@ async function main() {
     ]
   })
 
-  console.log('✅ Created translations for organizations, clubs, events, and audit actions')
+  console.log('✅ Created translations for organizations, clubs, tournaments, and audit actions')
 
   // Create global rankings
   await prisma.globalRanking.create({
@@ -415,6 +620,22 @@ async function main() {
     },
   })
 
+  await prisma.globalRanking.create({
+    data: {
+      athleteId: athlete4.id,
+      weapon: Weapon.FOIL,
+      category: 'Senior Men',
+      rank: 5,
+      points: 875,
+      victories: 42,
+      matches: 50,
+      touchesScored: 189,
+      touchesReceived: 142,
+      indicator: 47,
+      season: '2024-2025',
+    },
+  })
+
   console.log('✅ Created global rankings')
 
   console.log('🎉 Multi-tenant seeding completed!')
@@ -427,10 +648,23 @@ async function main() {
   console.log('\n🏢 Organizations:')
   console.log('1. Madrid Fencing Club (org-demo-1)')
   console.log('2. San Francisco Fencing Academy (org-demo-2)')
+  console.log('\n🏆 Tournaments:')
+  console.log('1. Copa de Navidad 2024 (Madrid) - ACTIVE, Registration Open')
+  console.log('   ├─ Epee Senior Men (32 max)')
+  console.log('   ├─ Epee Senior Women (24 max)')
+  console.log('   └─ Foil Senior Mixed (40 max)')
+  console.log('2. Bay Area Regional Championship (SF) - In Progress')
+  console.log('   ├─ Sabre Senior Men (28 max)')
+  console.log('   └─ Sabre Senior Women (20 max)')
+  console.log('3. Madrid Youth Open 2024 (Madrid) - COMPLETED')
+  console.log('   ├─ Foil U17 Men (16 max)')
+  console.log('   └─ Epee U20 Women (12 max)')
   console.log('\n🤺 Athletes:')
-  console.log('Ana García (ESP) - Member of Madrid')
-  console.log('John Smith (USA) - Member of SF')  
-  console.log('Marie Dubois (FRA) - Guest in Madrid, Visiting in SF')
+  console.log('Ana García (ESP) - Epee/Foil - Member of Madrid')
+  console.log('John Smith (USA) - Sabre - Member of SF')  
+  console.log('Marie Dubois (FRA) - Epee - Guest in Madrid, Visiting in SF')
+  console.log('Paolo Rossi (ITA) - Foil - Member of Madrid')
+  console.log('Sofia Petrov (RUS) - Sabre - Member of SF')
 }
 
 main()
