@@ -60,9 +60,9 @@ export default function TournamentList({
       const response = await apiFetch(`/api/tournaments?${params.toString()}`)
       const data = await response.json()
       
-      if (data.data) {
-        setTournaments(data.data)
-        setTotalCount(data.total || data.data.length)
+      if (data.tournaments) {
+        setTournaments(data.tournaments)
+        setTotalCount(data.tournaments.length)
       } else {
         setTournaments([])
         setTotalCount(0)
@@ -230,9 +230,9 @@ export default function TournamentList({
                       {new Date(tournament.startDate).toLocaleDateString()} - {new Date(tournament.endDate).toLocaleDateString()}
                     </div>
                     <div>
-                      <span className="font-medium">Registration:</span>
+                      <span className="font-medium">Status:</span>
                       <br />
-                      {new Date(tournament.registrationOpenDate).toLocaleDateString()} - {new Date(tournament.registrationCloseDate).toLocaleDateString()}
+                      {tournament.status.replace('_', ' ')}
                     </div>
                     <div>
                       <span className="font-medium">Venue:</span>

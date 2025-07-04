@@ -1,0 +1,75 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Quality Checks Before Commits
+
+- **Pre-Commit Verification Process:**
+  - Always test functionality manually before committing code changes
+  - Verify API endpoints return expected data (not just 200 status)
+  - Check frontend components actually display data correctly
+  - Ensure authentication flows work as expected
+  - Test user flows end-to-end before marking tasks as complete
+
+- **Code Verification Steps:**
+  ```bash
+  # ✅ DO: Test API endpoints
+  curl -H "Content-Type: application/json" http://localhost:3000/api/tournaments
+  
+  # ✅ DO: Check frontend in browser
+  # Navigate to the page and verify data displays correctly
+  
+  # ✅ DO: Test authentication
+  # Ensure login/logout works and protected routes are properly secured
+  
+  # ✅ DO: Verify database changes
+  npx prisma studio # Check data exists and is correct
+  ```
+
+- **Required Checks Before Commits:**
+  - [ ] **Functionality Test**: Feature works as intended in browser
+  - [ ] **Data Verification**: Database contains expected data
+  - [ ] **API Testing**: Endpoints return correct responses when authenticated
+  - [ ] **Error Handling**: Proper error messages for unauthorized/invalid requests
+  - [ ] **Component Rendering**: UI components display data without errors
+  - [ ] **Authentication Flow**: Login/logout works correctly
+  - [ ] **Role-based Access**: Proper permissions enforced
+
+- **Testing Commands:**
+  ```bash
+  # Start development server
+  npm run dev
+  
+  # Test API with authentication (use browser developer tools)
+  # Check Network tab for API responses
+  
+  # Verify database
+  npx prisma studio --browser none &
+  
+  # Check component compilation
+  npm run build  # Ensure no TypeScript errors
+  ```
+
+- **Common Issues to Check:**
+  - Schema field mismatches between database and components
+  - Missing authentication causing "Unauthorized" errors
+  - TypeScript interface mismatches
+  - Missing imports or export statements
+  - Incorrect API endpoint paths
+  - Component state management issues
+
+- **Before Each Commit:**
+  1. **Manual Test**: Actually use the feature in the browser
+  2. **Check Logs**: Look for errors in browser console and terminal
+  3. **Verify Data Flow**: Ensure data flows from database → API → frontend
+  4. **Test Edge Cases**: Try invalid inputs, unauthorized access
+  5. **Document Issues**: Note any problems found and solutions
+
+- **Integration with Git Workflow:**
+  - Reference [git_commits.mdc](mdc:.cursor/rules/git_commits.mdc) for commit message format
+  - Include test results in commit messages when relevant
+  - Create separate commits for fixes discovered during testing
+  - Always test after merging or rebasing branches
+
+**Remember**: It's better to catch issues during development than after deployment. Always verify functionality works before committing and marking tasks complete.

@@ -10,19 +10,17 @@ import TournamentForm from "./TournamentForm"
 export interface Tournament {
   id: string
   name: string
-  description?: string
-  startDate: string
-  endDate: string
-  registrationOpenDate: string
-  registrationCloseDate: string
-  venue?: string
+  description?: string | null
+  startDate: string | Date
+  endDate: string | Date
+  venue?: string | null
   isActive: boolean
   status: string
+  isPublic: boolean
   organizationId: string
   createdById: string
-  maxParticipants?: number
-  createdAt: string
-  updatedAt: string
+  createdAt: string | Date
+  updatedAt: string | Date
   organization?: {
     id: string
     name: string
@@ -41,10 +39,10 @@ interface TournamentManagementProps {
 
 export default function TournamentManagement({ organizationId }: TournamentManagementProps) {
   // Role-based access control
-  const { isSystemAdmin, isOrgAdmin } = useRoleCheck()
-  const canCreate = isSystemAdmin || isOrgAdmin
-  const canEdit = isSystemAdmin || isOrgAdmin
-  const canDelete = isSystemAdmin || isOrgAdmin
+  const { isSystemAdmin, isOrganizationAdmin } = useRoleCheck()
+  const canCreate = isSystemAdmin() || isOrganizationAdmin()
+  const canEdit = isSystemAdmin() || isOrganizationAdmin()
+  const canDelete = isSystemAdmin() || isOrganizationAdmin()
 
   // State management
   const [currentView, setCurrentView] = useState<ViewMode>("list")
@@ -279,14 +277,8 @@ export default function TournamentManagement({ organizationId }: TournamentManag
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-sm font-medium text-gray-500">Registration Period</dt>
-                        <dd className="text-sm text-gray-900">
-                          {new Date(selectedTournament.registrationOpenDate).toLocaleDateString()} - {new Date(selectedTournament.registrationCloseDate).toLocaleDateString()}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm font-medium text-gray-500">Max Participants</dt>
-                        <dd className="text-sm text-gray-900">{selectedTournament.maxParticipants || "Unlimited"}</dd>
+                        <dt className="text-sm font-medium text-gray-500">Public Tournament</dt>
+                        <dd className="text-sm text-gray-900">{selectedTournament.isPublic ? "Yes" : "No"}</dd>
                       </div>
                       <div>
                         <dt className="text-sm font-medium text-gray-500">Competitions</dt>

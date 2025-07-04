@@ -25,7 +25,7 @@ export default function Home() {
                   href="/events"
                   className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
                 >
-                  Events
+                  Tournaments
                 </a>
               </nav>
               <AuthButton />
@@ -41,7 +41,7 @@ export default function Home() {
             Modern Tournament Management
           </h2>
           <p className="mt-4 text-xl text-gray-600 max-w-3xl mx-auto">
-            Complete web-based solution for fencing tournaments. Manage events, 
+            Complete web-based solution for fencing tournaments. Manage tournaments, 
             athletes, poules, and direct elimination brackets with real-time updates.
           </p>
         </div>
@@ -56,10 +56,10 @@ export default function Home() {
                 </div>
                 <div className="ml-4">
                   <h3 className="text-lg font-medium text-gray-900">
-                    Event Management
+                    Tournament Management
                   </h3>
                   <p className="text-sm text-gray-500">
-                    Create and manage fencing tournaments for all weapons
+                    Create and manage fencing tournaments with multiple competitions
                   </p>
                 </div>
               </div>
