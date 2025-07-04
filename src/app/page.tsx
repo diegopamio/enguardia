@@ -13,7 +13,23 @@ export default function Home() {
                 Fencing Tournament Management
               </span>
             </div>
-            <AuthButton />
+            <div className="flex items-center space-x-4">
+              <nav className="flex space-x-4">
+                <a
+                  href="/"
+                  className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  Home
+          </a>
+          <a
+                  href="/events"
+                  className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  Events
+                </a>
+              </nav>
+              <AuthButton />
+            </div>
           </div>
         </div>
       </header>
@@ -32,7 +48,7 @@ export default function Home() {
 
         {/* Features Grid */}
         <div className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
+          <a href="/events" className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200 block">
             <div className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -48,7 +64,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
-          </div>
+          </a>
 
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="p-6">

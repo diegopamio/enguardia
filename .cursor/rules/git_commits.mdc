@@ -1,5 +1,155 @@
 ---
-description:
-globs:
-alwaysApply: false
+description: 
+globs: 
+alwaysApply: true
 ---
+# Git Commit Guidelines
+
+- **Commit Frequency:**
+  - Commit after every meaningful implementation step or subtask completion
+  - Commit when a feature/function is working (even if incomplete)
+  - Commit before major refactors or architectural changes
+  - Commit after updating documentation or rules
+  - Commit when tests pass or significant progress is made
+
+- **Conventional Commit Format:**
+  ```
+  <type>[optional scope]: <description>
+  
+  [optional body]
+  
+  [optional footer(s)]
+  ```
+
+- **Common Types:**
+  - `feat`: New feature implementation
+  - `fix`: Bug fixes or corrections
+  - `docs`: Documentation updates
+  - `style`: Code formatting, semicolons, etc.
+  - `refactor`: Code restructuring without behavior change
+  - `test`: Adding or updating tests
+  - `chore`: Build tasks, package updates, tooling
+  - `perf`: Performance improvements
+  - `ci`: CI/CD configuration changes
+  - `build`: Build system or dependency changes
+
+- **Scope Examples:**
+  - `(api)`: API-related changes
+  - `(ui)`: User interface components
+  - `(auth)`: Authentication system
+  - `(db)`: Database schema or queries
+  - `(events)`: Event management features
+  - `(tournaments)`: Tournament management features
+  - `(competitions)`: Competition management features
+  - `(validation)`: Validation schemas
+  - `(config)`: Configuration changes
+
+- **Good Commit Examples:**
+  ```bash
+  # ✅ Feature implementation
+  feat(tournaments): add tournament creation API endpoint
+  
+  # ✅ Database changes
+  feat(db): redesign schema for tournament/competition architecture
+  
+  # ✅ UI component
+  feat(ui): implement EventForm component with validation
+  
+  # ✅ Bug fix
+  fix(auth): resolve session persistence issue with NEXTAUTH_SECRET
+  
+  # ✅ Documentation
+  docs: add comprehensive tournament architecture guide
+  
+  # ✅ Refactoring
+  refactor(api): migrate from Event to Tournament/Competition endpoints
+  
+  # ✅ Configuration
+  chore(config): update Prisma schema for new data model
+  
+  # ✅ Multiple related changes
+  feat(tournaments): implement complete tournament management system
+  
+  - Add Tournament and Competition models to Prisma schema
+  - Create API endpoints for CRUD operations
+  - Add validation schemas for new entities
+  - Update documentation with new architecture
+  ```
+
+- **Multi-line Commit Body Guidelines:**
+  - Use when the change is complex or affects multiple areas
+  - Explain the "why" not just the "what"
+  - List major changes as bullet points
+  - Reference task IDs when applicable
+  - Include breaking changes in footer
+
+- **Integration with Development Workflow:**
+  - Commit after completing each subtask from [dev_workflow.mdc](mdc:.cursor/rules/dev_workflow.mdc)
+  - Stage changes with `git add .` or specific files
+  - Use descriptive commit messages that explain the progress
+  - Reference task/subtask IDs when relevant: `feat(auth): implement JWT validation for task 4.2.1`
+
+- **Before Committing Checklist:**
+  - [ ] Code compiles without errors
+  - [ ] No obvious linting issues (unless intentional)
+  - [ ] Documentation updated if needed
+  - [ ] Tests still pass (if applicable)
+  - [ ] Changes align with task requirements
+
+- **Git Command Examples:**
+  ```bash
+  # ✅ Standard commit
+  git add .
+  git commit -m "feat(api): add tournament creation endpoint"
+  
+  # ✅ Detailed commit with body
+  git add .
+  git commit -m "feat(tournaments): implement complete API layer
+  
+  - Add Tournament and Competition CRUD endpoints
+  - Include proper authentication and authorization
+  - Add business rule validation
+  - Maintain backward compatibility with Event API"
+  
+  # ✅ Fix with scope
+  git add src/lib/auth.ts
+  git commit -m "fix(auth): add missing NEXTAUTH_SECRET validation"
+  
+  # ✅ Documentation update
+  git add docs/ README.md
+  git commit -m "docs: update architecture documentation for tournament redesign"
+  ```
+
+- **Bad Commit Examples:**
+  ```bash
+  # ❌ Too vague
+  git commit -m "fix stuff"
+  git commit -m "updates"
+  git commit -m "wip"
+  
+  # ❌ Not descriptive
+  git commit -m "changes"
+  git commit -m "more work"
+  
+  # ❌ Missing type
+  git commit -m "add new feature"
+  git commit -m "update API"
+  ```
+
+- **Task-Specific Commit Pattern:**
+  - When working on a specific task: `feat(scope): description for task X.Y`
+  - When completing a subtask: `feat(scope): complete subtask X.Y - description`
+  - When updating task progress: `chore(tasks): update task X.Y status and details`
+
+- **Rule Integration:**
+  - Follow this rule consistently with [dev_workflow.mdc](mdc:.cursor/rules/dev_workflow.mdc)
+  - Update [self_improve.mdc](mdc:.cursor/rules/self_improve.mdc) if new patterns emerge
+  - Reference specific files using [cursor_rules.mdc](mdc:.cursor/rules/cursor_rules.mdc) format
+
+- **Emergency Commits:**
+  - Use `fix!:` for breaking changes
+  - Use `feat!:` for breaking new features
+  - Add `BREAKING CHANGE:` in footer for major changes
+  - Document breaking changes clearly in commit body
+
+**Remember:** Good commits tell the story of your development process and make it easy to understand what was done and why.

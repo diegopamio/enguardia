@@ -28,7 +28,7 @@ model Organization {
 
   // Relations - All tenant-scoped data
   users                 User[]
-  tournaments           Tournament[]
+  events                Event[]
   clubs                 Club[]
   athleteOrganizations  AthleteOrganization[]
   organizationRankings  OrganizationRanking[]
@@ -68,8 +68,8 @@ model User {
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   // Relations
-  createdTournaments Tournament[]
-  auditLogs          AuditLog[]
+  createdEvents  Event[]
+  auditLogs      AuditLog[]
   
   @@index([organizationId])
   @@map("users")
@@ -99,7 +99,7 @@ model Athlete {
   // Relations (NO organizationId - shared globally)
   weapons              AthleteWeapon[]
   organizations        AthleteOrganization[]
-  competitionRegistrations CompetitionRegistration[]
+  eventRegistrations   EventRegistration[]
   pouleAssignments     PouleAssignment[]
   pouleMatchesA        PouleMatch[] @relation("AthleteA")
   pouleMatchesB        PouleMatch[] @relation("AthleteB")
@@ -222,37 +222,41 @@ model ClubTranslation {
   @@map("club_translations")
 }
 
-// ===== NEW TOURNAMENT STRUCTURE =====
-
-// Tournament - Overall event container (e.g., "Copa de Navidad 2024")
-model Tournament {
-  id             String            @id @default(cuid())
+// Tournament Events - Scoped to organization
+model Event {
+  id             String      @id @default(cuid())
   name           String
   description    String?
+  weapon         Weapon
+  category       String      // e.g., "Senior Men's", "U20 Women's"
   startDate      DateTime
   endDate        DateTime
   venue          String?
-  status         TournamentStatus  @default(DRAFT)
-  isPublic       Boolean           @default(false) // Can other orgs see results?
-  isActive       Boolean           @default(false) // Only one tournament per org can be active
+  status         EventStatus @default(DRAFT)
+  maxParticipants Int?
+  isPublic       Boolean     @default(false) // Can other orgs see results?
+  isActive       Boolean     @default(false) // Only one event per org can be active
   organizationId String
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
   // Relations
-  organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdBy      User                   @relation(fields: [createdById], references: [id])
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy      User                @relation(fields: [createdById], references: [id])
   createdById    String
-  translations   TournamentTranslation[]
-  competitions   Competition[]
+  translations   EventTranslation[]
+  registrations  EventRegistration[]
+  poules         Poule[]
+  brackets       DirectEliminationBracket[]
+  organizationRankings OrganizationRanking[]
   auditLogs      AuditLog[]
 
   @@index([organizationId])
   @@index([organizationId, status])
-  @@map("tournaments")
+  @@map("events")
 }
 
-enum TournamentStatus {
+enum EventStatus {
   DRAFT
   REGISTRATION_OPEN
   REGISTRATION_CLOSED
@@ -261,82 +265,36 @@ enum TournamentStatus {
   CANCELLED
 }
 
-model TournamentTranslation {
-  id           String     @id @default(cuid())
-  tournamentId String
-  locale       String     // 'en', 'es', 'fr'
-  name         String
-  description  String?
+model EventTranslation {
+  id          String @id @default(cuid())
+  eventId     String
+  locale      String // 'en', 'es', 'fr'
+  name        String
+  description String?
   
-  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  event       Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
   
-  @@unique([tournamentId, locale])
-  @@map("tournament_translations")
+  @@unique([eventId, locale])
+  @@map("event_translations")
 }
 
-// Competition - Specific weapon+category within tournament (e.g., "Épée Senior Men")
-model Competition {
-  id                  String              @id @default(cuid())
-  tournamentId        String
-  name                String
-  weapon              Weapon
-  category            String              // e.g., "Senior Men's", "U20 Women's"
-  maxParticipants     Int?
-  registrationDeadline DateTime?
-  status              CompetitionStatus   @default(DRAFT)
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
-
-  // Relations
-  tournament          Tournament                @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  translations        CompetitionTranslation[]
-  registrations       CompetitionRegistration[]
-  phases              Phase[]
-  organizationRankings OrganizationRanking[]
-
-  @@index([tournamentId])
-  @@index([tournamentId, weapon, category])
-  @@map("competitions")
-}
-
-enum CompetitionStatus {
-  DRAFT
-  REGISTRATION_OPEN
-  REGISTRATION_CLOSED
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
-
-model CompetitionTranslation {
-  id           String      @id @default(cuid())
-  competitionId String
-  locale       String      // 'en', 'es', 'fr'
-  name         String
-  
-  competition  Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
-  
-  @@unique([competitionId, locale])
-  @@map("competition_translations")
-}
-
-// Competition registration (many-to-many between Competition and Athlete)
-model CompetitionRegistration {
+// Event registration (many-to-many between Event and Athlete)
+model EventRegistration {
   id            String            @id @default(cuid())
-  competitionId String
+  eventId       String
   athleteId     String
   seedNumber    Int?
   isPresent     Boolean           @default(true)
   status        RegistrationStatus @default(REGISTERED)
   registeredAt  DateTime          @default(now())
   
-  competition   Competition       @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  event         Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
   athlete       Athlete           @relation(fields: [athleteId], references: [id], onDelete: Cascade)
   
-  @@unique([competitionId, athleteId])
-  @@index([competitionId])
+  @@unique([eventId, athleteId])
+  @@index([eventId])
   @@index([athleteId])
-  @@map("competition_registrations")
+  @@map("event_registrations")
 }
 
 enum RegistrationStatus {
@@ -346,104 +304,56 @@ enum RegistrationStatus {
   DISQUALIFIED
 }
 
-// Phase - Competition stages (Poules, Direct Elimination, Classification)
-model Phase {
-  id            String      @id @default(cuid())
-  competitionId String
-  name          String      // e.g., "Poules", "Table of 64", "Quarter Finals", "Classification"
-  phaseType     PhaseType
-  sequenceOrder Int         // Order within competition (1, 2, 3...)
-  status        PhaseStatus @default(SCHEDULED)
-  startTime     DateTime?
-  endTime       DateTime?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-
-  // Relations
-  competition   Competition          @relation(fields: [competitionId], references: [id], onDelete: Cascade)
-  translations  PhaseTranslation[]
-  poules        Poule[]
-  brackets      DirectEliminationBracket[]
-
-  @@unique([competitionId, sequenceOrder])
-  @@index([competitionId])
-  @@map("phases")
-}
-
-enum PhaseType {
-  POULE              // Round-robin poules
-  DIRECT_ELIMINATION // Single elimination
-  CLASSIFICATION     // Placement matches
-}
-
-enum PhaseStatus {
-  SCHEDULED
-  IN_PROGRESS
-  COMPLETED
-}
-
-model PhaseTranslation {
-  id      String @id @default(cuid())
-  phaseId String
-  locale  String // 'en', 'es', 'fr'
-  name    String
-  
-  phase   Phase  @relation(fields: [phaseId], references: [id], onDelete: Cascade)
-  
-  @@unique([phaseId, locale])
-  @@map("phase_translations")
-}
-
-// Organization-specific Rankings - Updated to work with competitions
+// Organization-specific Rankings
 model OrganizationRanking {
-  id              String       @id @default(cuid())
+  id              String   @id @default(cuid())
   organizationId  String
   athleteId       String
-  competitionId   String?      // Optional: ranking for specific competition
-  phaseType       String       // "poule", "elimination", "overall"
+  eventId         String?  // Optional: ranking for specific event
+  phase           String   // "poule", "elimination", "overall"
   rank            Int?
-  victories       Int          @default(0)
-  matches         Int          @default(0)
-  touchesScored   Int          @default(0)
-  touchesReceived Int          @default(0)
-  indicator       Int          @default(0) // touchesScored - touchesReceived
-  vmRatio         Float?       // victories/matches
-  isEliminated    Boolean      @default(false)
+  victories       Int      @default(0)
+  matches         Int      @default(0)
+  touchesScored   Int      @default(0)
+  touchesReceived Int      @default(0)
+  indicator       Int      @default(0) // touchesScored - touchesReceived
+  vmRatio         Float?   // victories/matches
+  isEliminated    Boolean  @default(false)
   finalRank       Int?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
   
   // Relations
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   athlete         Athlete      @relation(fields: [athleteId], references: [id], onDelete: Cascade)
-  competition     Competition? @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  event           Event?       @relation(fields: [eventId], references: [id], onDelete: Cascade)
   
-  @@unique([organizationId, athleteId, competitionId, phaseType])
+  @@unique([organizationId, athleteId, eventId, phase])
   @@index([organizationId])
-  @@index([competitionId])
+  @@index([eventId])
   @@map("organization_rankings")
 }
 
 // ===== POULE (ROUND-ROBIN) SYSTEM =====
 
 model Poule {
-  id        String      @id @default(cuid())
-  phaseId   String
+  id        String   @id @default(cuid())
+  eventId   String
   number    Int
   piste     String?
   referee   String?
   startTime DateTime?
   status    PouleStatus @default(SCHEDULED)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   
   // Relations
-  phase       Phase            @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  event       Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
   assignments PouleAssignment[]
   matches     PouleMatch[]
   
-  @@unique([phaseId, number])
-  @@index([phaseId])
+  @@unique([eventId, number])
+  @@index([eventId])
   @@map("poules")
 }
 
@@ -506,19 +416,19 @@ enum MatchStatus {
 
 model DirectEliminationBracket {
   id        String   @id @default(cuid())
-  phaseId   String
+  eventId   String
   name      String   // e.g., "Table of 64", "Quarter Finals"
   round     Int      // 1=final, 2=semi, 4=quarter, etc.
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
   // Relations
-  phase        Phase                                @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  event        Event                                @relation(fields: [eventId], references: [id], onDelete: Cascade)
   matches      DEMatch[]
   translations DirectEliminationBracketTranslation[]
   
-  @@unique([phaseId, round])
-  @@index([phaseId])
+  @@unique([eventId, round])
+  @@index([eventId])
   @@map("de_brackets")
 }
 
@@ -594,24 +504,24 @@ enum CardType {
 // ===== AUDIT SYSTEM =====
 
 model AuditLog {
-  id             String        @id @default(cuid())
-  organizationId String?       // null for system-wide actions
-  tournamentId   String?
+  id             String       @id @default(cuid())
+  organizationId String?      // null for system-wide actions
+  eventId        String?
   userId         String
-  action         String        // e.g., "SCORE_UPDATE", "MATCH_START", "ATHLETE_WITHDRAWAL"
-  tableName      String        // e.g., "poule_matches", "de_matches"
-  recordId       String        // ID of the affected record
-  oldValues      Json?         // Previous values
-  newValues      Json?         // New values
-  timestamp      DateTime      @default(now())
+  action         String       // e.g., "SCORE_UPDATE", "MATCH_START", "ATHLETE_WITHDRAWAL"
+  tableName      String       // e.g., "poule_matches", "de_matches"
+  recordId       String       // ID of the affected record
+  oldValues      Json?        // Previous values
+  newValues      Json?        // New values
+  timestamp      DateTime     @default(now())
   
   // Relations
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  tournament     Tournament?   @relation(fields: [tournamentId], references: [id])
+  event          Event?        @relation(fields: [eventId], references: [id])
   user           User          @relation(fields: [userId], references: [id])
   
   @@index([organizationId])
-  @@index([tournamentId])
+  @@index([eventId])
   @@index([userId])
   @@map("audit_logs")
 }
