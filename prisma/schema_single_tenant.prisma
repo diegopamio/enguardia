@@ -1,0 +1,380 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// ===== USER & AUTHENTICATION =====
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      UserRole @default(PUBLIC)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  createdEvents Event[]
+  auditLogs     AuditLog[]
+  
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  REFEREE
+  PUBLIC
+}
+
+// ===== CORE ENTITIES =====
+
+// Clubs/Organizations
+model Club {
+  id        String   @id @default(cuid())
+  name      String
+  city      String?
+  country   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  athletes  Athlete[]
+  translations ClubTranslation[]
+
+  @@map("clubs")
+}
+
+model ClubTranslation {
+  id        String @id @default(cuid())
+  clubId    String
+  locale    String // 'en', 'es', 'fr'
+  name      String
+  
+  club      Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  
+  @@unique([clubId, locale])
+  @@map("club_translations")
+}
+
+// Athletes/Fencers
+model Athlete {
+  id          String        @id @default(cuid())
+  firstName   String
+  lastName    String
+  dateOfBirth DateTime?
+  nationality String?
+  fieId       String?       @unique
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  club        Club?         @relation(fields: [clubId], references: [id])
+  clubId      String?
+  weapons     AthleteWeapon[]
+  eventRegistrations EventRegistration[]
+  pouleAssignments   PouleAssignment[]
+  pouleMatchesA      PouleMatch[] @relation("AthleteA")
+  pouleMatchesB      PouleMatch[] @relation("AthleteB")
+  pouleWins          PouleMatch[] @relation("PouleWinner")
+  deMatchesA         DEMatch[]    @relation("DEAthleteA")
+  deMatchesB         DEMatch[]    @relation("DEAthleteB")
+  deWins             DEMatch[]    @relation("DEWinner")
+  rankings           Ranking[]
+  cards              Card[]
+  
+  @@map("athletes")
+}
+
+// Athlete weapon specializations
+model AthleteWeapon {
+  id        String   @id @default(cuid())
+  athleteId String
+  weapon    Weapon
+  createdAt DateTime @default(now())
+
+  athlete   Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  
+  @@unique([athleteId, weapon])
+  @@map("athlete_weapons")
+}
+
+enum Weapon {
+  EPEE
+  FOIL
+  SABRE
+}
+
+// Tournament Events
+model Event {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  weapon      Weapon
+  category    String      // e.g., "Senior Men's", "U20 Women's"
+  startDate   DateTime
+  endDate     DateTime
+  venue       String?
+  status      EventStatus @default(DRAFT)
+  maxParticipants Int?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  createdBy     User               @relation(fields: [createdById], references: [id])
+  createdById   String
+  translations  EventTranslation[]
+  registrations EventRegistration[]
+  poules        Poule[]
+  brackets      DirectEliminationBracket[]
+  rankings      Ranking[]
+  auditLogs     AuditLog[]
+
+  @@map("events")
+}
+
+enum EventStatus {
+  DRAFT
+  REGISTRATION_OPEN
+  REGISTRATION_CLOSED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model EventTranslation {
+  id          String @id @default(cuid())
+  eventId     String
+  locale      String // 'en', 'es', 'fr'
+  name        String
+  description String?
+  
+  event       Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  
+  @@unique([eventId, locale])
+  @@map("event_translations")
+}
+
+// Event registration (many-to-many between Event and Athlete)
+model EventRegistration {
+  id            String            @id @default(cuid())
+  eventId       String
+  athleteId     String
+  seedNumber    Int?
+  isPresent     Boolean           @default(true)
+  status        RegistrationStatus @default(REGISTERED)
+  registeredAt  DateTime          @default(now())
+  
+  event         Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  athlete       Athlete           @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  
+  @@unique([eventId, athleteId])
+  @@map("event_registrations")
+}
+
+enum RegistrationStatus {
+  REGISTERED
+  CHECKED_IN
+  WITHDRAWN
+  DISQUALIFIED
+}
+
+// ===== POULE (ROUND-ROBIN) SYSTEM =====
+
+model Poule {
+  id        String   @id @default(cuid())
+  eventId   String
+  number    Int
+  piste     String?
+  referee   String?
+  startTime DateTime?
+  status    PouleStatus @default(SCHEDULED)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  event       Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  assignments PouleAssignment[]
+  matches     PouleMatch[]
+  
+  @@unique([eventId, number])
+  @@map("poules")
+}
+
+enum PouleStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+}
+
+model PouleAssignment {
+  id        String   @id @default(cuid())
+  pouleId   String
+  athleteId String
+  position  Int      // Position within the poule (1, 2, 3, etc.)
+  
+  poule     Poule    @relation(fields: [pouleId], references: [id], onDelete: Cascade)
+  athlete   Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  
+  @@unique([pouleId, athleteId])
+  @@unique([pouleId, position])
+  @@map("poule_assignments")
+}
+
+model PouleMatch {
+  id        String      @id @default(cuid())
+  pouleId   String
+  athleteAId String
+  athleteBId String
+  scoreA    Int         @default(0)
+  scoreB    Int         @default(0)
+  winnerId  String?
+  status    MatchStatus @default(SCHEDULED)
+  startTime DateTime?
+  endTime   DateTime?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  
+  // Relations
+  poule     Poule       @relation(fields: [pouleId], references: [id], onDelete: Cascade)
+  athleteA  Athlete     @relation("AthleteA", fields: [athleteAId], references: [id])
+  athleteB  Athlete     @relation("AthleteB", fields: [athleteBId], references: [id])
+  winner    Athlete?    @relation("PouleWinner", fields: [winnerId], references: [id])
+  cards     Card[]
+  
+  @@unique([pouleId, athleteAId, athleteBId])
+  @@map("poule_matches")
+}
+
+enum MatchStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// ===== DIRECT ELIMINATION SYSTEM =====
+
+model DirectEliminationBracket {
+  id        String   @id @default(cuid())
+  eventId   String
+  name      String   // e.g., "Table of 64", "Quarter Finals"
+  round     Int      // 1=final, 2=semi, 4=quarter, etc.
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  matches   DEMatch[]
+  
+  @@unique([eventId, round])
+  @@map("de_brackets")
+}
+
+model DEMatch {
+  id         String                    @id @default(cuid())
+  bracketId  String
+  position   Int                       // Position in bracket
+  athleteAId String?
+  athleteBId String?
+  scoreA     Int                       @default(0)
+  scoreB     Int                       @default(0)
+  winnerId   String?
+  status     MatchStatus               @default(SCHEDULED)
+  piste      String?
+  referee    String?
+  startTime  DateTime?
+  endTime    DateTime?
+  createdAt  DateTime                  @default(now())
+  updatedAt  DateTime                  @updatedAt
+  
+  // Relations
+  bracket    DirectEliminationBracket  @relation(fields: [bracketId], references: [id], onDelete: Cascade)
+  athleteA   Athlete?                  @relation("DEAthleteA", fields: [athleteAId], references: [id])
+  athleteB   Athlete?                  @relation("DEAthleteB", fields: [athleteBId], references: [id])
+  winner     Athlete?                  @relation("DEWinner", fields: [winnerId], references: [id])
+  cards      Card[]
+  
+  @@unique([bracketId, position])
+  @@map("de_matches")
+}
+
+// ===== SCORING & RANKING SYSTEM =====
+
+// Cards (yellow/red/black)
+model Card {
+  id          String     @id @default(cuid())
+  athleteId   String
+  cardType    CardType
+  reason      String?
+  issuedAt    DateTime   @default(now())
+  
+  // Polymorphic relations (either poule match or DE match)
+  pouleMatchId String?
+  deMatchId    String?
+  
+  athlete      Athlete     @relation(fields: [athleteId], references: [id])
+  pouleMatch   PouleMatch? @relation(fields: [pouleMatchId], references: [id])
+  deMatch      DEMatch?    @relation(fields: [deMatchId], references: [id])
+  
+  @@map("cards")
+}
+
+enum CardType {
+  YELLOW
+  RED
+  BLACK
+}
+
+// Rankings with FIE tie-breaker fields
+model Ranking {
+  id              String   @id @default(cuid())
+  eventId         String
+  athleteId       String
+  phase           String   // "poule", "elimination"
+  rank            Int?
+  victories       Int      @default(0)
+  matches         Int      @default(0)
+  touchesScored   Int      @default(0)
+  touchesReceived Int      @default(0)
+  indicator       Int      @default(0) // touchesScored - touchesReceived
+  vmRatio         Float?   // victories/matches
+  isEliminated    Boolean  @default(false)
+  finalRank       Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  event           Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  athlete         Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  
+  @@unique([eventId, athleteId, phase])
+  @@map("rankings")
+}
+
+// ===== AUDIT SYSTEM =====
+
+model AuditLog {
+  id        String     @id @default(cuid())
+  eventId   String?
+  userId    String
+  action    String     // e.g., "SCORE_UPDATE", "MATCH_START", "ATHLETE_WITHDRAWAL"
+  tableName String     // e.g., "poule_matches", "de_matches"
+  recordId  String     // ID of the affected record
+  oldValues Json?      // Previous values
+  newValues Json?      // New values
+  timestamp DateTime   @default(now())
+  
+  // Relations
+  event     Event?     @relation(fields: [eventId], references: [id])
+  user      User       @relation(fields: [userId], references: [id])
+  
+  @@map("audit_logs")
+}

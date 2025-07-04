@@ -22,7 +22,9 @@
     "prisma": "^6.10.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-i18next": "^15.5.3"
+    "react-hot-toast": "^2.5.2",
+    "react-i18next": "^15.5.3",
+    "zod": "^3.25.67"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
