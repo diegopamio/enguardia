@@ -216,7 +216,7 @@
           2,
           3
         ],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -284,8 +284,62 @@
           2,
           4
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "in-progress",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Develop File Upload and Parsing for FIE XML/CSV",
+            "description": "Implement secure file upload functionality and robust parsers for FIE XML and CSV formats, ensuring correct extraction of athlete and roster data.",
+            "dependencies": [],
+            "details": "Support both FIE XML and CSV file types. Use libraries such as 'xml2js' for XML and 'csv-parse' for CSV. Validate file structure and handle errors gracefully.\n<info added on 2025-07-07T22:10:05.493Z>\n## Major Accomplishments:\n- **Comprehensive FIE Research**: Researched and documented FIE XML/CSV format standards\n- **Core API Endpoints Created**:\n  - `/api/athletes` - Full CRUD for global athlete management \n  - `/api/athletes/import` - Advanced FIE file import with duplicate detection\n- **Robust Parsing Library**: Created `src/lib/roster-parser.ts` with support for:\n  - XML parsing (multiple format variations)\n  - CSV parsing with field mapping\n  - Data validation and normalization\n  - TypeScript-compliant with proper error handling\n\n## Technical Implementation:\n- **Global Athlete System**: Leverages existing schema's global athlete design\n- **Organizational Affiliations**: Supports multi-organization memberships\n- **Duplicate Detection**: FIE ID, name+birth, and name-only matching strategies\n- **Data Quality**: Comprehensive validation with Zod schemas\n- **Field Mapping**: Handles various CSV/XML field name variations\n- **Error Handling**: Graceful error handling with detailed feedback\n\n## File Import Features:\n- **Multiple Formats**: XML and CSV support with auto-detection\n- **Duplicate Strategies**: Skip, Update, or Error on duplicates\n- **Batch Processing**: Efficient processing of large roster files\n- **Progress Reporting**: Detailed results with created/updated/skipped counts\n- **Affiliation Management**: Auto-creates organizational relationships\n\n## Dependencies Installed:\n- xml2js, csv-parse, multer for file processing\n- Proper TypeScript types for all libraries\n</info added on 2025-07-07T22:10:05.493Z>",
+            "status": "in-progress",
+            "testStrategy": "Upload sample FIE XML and CSV files with valid and invalid data; verify correct parsing and error handling."
+          },
+          {
+            "id": 2,
+            "title": "Implement Global Athlete Registry with Duplicate Detection",
+            "description": "Create a global athlete database that enables searching and reusing athlete records across organizations, with logic to detect and prevent duplicates during import.",
+            "dependencies": [
+              1
+            ],
+            "details": "Use unique identifiers (e.g., name, birthdate, email) to match athletes. If a match is found, link to the existing record instead of creating a new one.",
+            "status": "pending",
+            "testStrategy": "Import rosters containing overlapping athletes; confirm that duplicates are not created and existing records are reused."
+          },
+          {
+            "id": 3,
+            "title": "Design Organizational Affiliation Management",
+            "description": "Develop functionality to associate athletes with one or more organizations and manage their affiliations, including team assignments and roles.",
+            "dependencies": [
+              2
+            ],
+            "details": "Allow athletes to be affiliated with multiple organizations and update affiliations during import or manual editing.",
+            "status": "pending",
+            "testStrategy": "Assign athletes to multiple organizations and verify correct affiliation data in the system."
+          },
+          {
+            "id": 4,
+            "title": "Build Roster Management UI with Manual Editing",
+            "description": "Create a user interface for administrators to view, edit, and manage rosters, including manual addition, editing, and removal of athletes.",
+            "dependencies": [
+              3
+            ],
+            "details": "UI should support searching the global athlete registry, editing athlete details, and managing organizational affiliations.",
+            "status": "pending",
+            "testStrategy": "Perform manual edits and verify that changes are reflected in both the UI and backend data."
+          },
+          {
+            "id": 5,
+            "title": "Enable Athlete Presence Tracking and CRUD Operations",
+            "description": "Add features to mark athletes as present or absent and provide full CRUD (Create, Read, Update, Delete) operations for roster entries via API and UI.",
+            "dependencies": [
+              4
+            ],
+            "details": "Presence status should be easily toggled and visible in the roster UI. Ensure API endpoints support all necessary operations.",
+            "status": "pending",
+            "testStrategy": "Toggle presence status and perform CRUD operations; verify correct updates in both UI and backend."
+          }
+        ]
       },
       {
         "id": 6,
@@ -574,7 +628,7 @@
     ],
     "metadata": {
       "created": "2025-06-20T03:45:22.475Z",
-      "updated": "2025-07-04T00:54:55.442Z",
+      "updated": "2025-07-07T22:01:31.548Z",
       "description": "Tasks for master context"
     }
   }
