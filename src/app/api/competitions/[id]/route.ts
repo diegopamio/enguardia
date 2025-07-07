@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
-import { UpdateCompetitionSchema, formatValidationErrors, AuthValidators } from '@/lib/validation'
-import { UserRole } from '@prisma/client'
+import { getCurrentUserSession } from '@/lib/auth'
+import { prisma } from '@/lib/db'
+import { NotificationError } from '@shared/notifications'
 
 // GET /api/competitions/[id] - Get competition by ID
 export async function GET(
@@ -11,56 +9,95 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getCurrentUserSession()
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
     }
 
-    const { id } = params
+    const competitionId = params.id
+    if (!competitionId) {
+      return NextResponse.json(
+        { error: 'Competition ID is required' },
+        { status: 400 }
+      )
+    }
 
-    const competition = await prisma.competition.findUnique({
-      where: { id },
+    // Get competition with related data
+    const competition = await prisma.competition.findFirst({
+      where: {
+        id: competitionId,
+        tournament: {
+          OR: [
+            { organizationId: session.user.organizationId },
+            { isPublic: true }
+          ]
+        }
+      },
       include: {
         tournament: {
           include: {
-            organization: { select: { id: true, name: true } }
+            organization: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           }
         },
-        translations: true,
         registrations: {
           include: {
-            athlete: { select: { id: true, firstName: true, lastName: true } }
+            athlete: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          },
+          orderBy: {
+            registeredAt: 'asc'
           }
         },
         phases: {
-          include: { translations: true },
-          orderBy: { sequenceOrder: 'asc' }
+          orderBy: {
+            sequenceOrder: 'asc'
+          }
+        },
+        _count: {
+          select: {
+            registrations: true,
+            phases: true
+          }
         }
       }
     })
 
     if (!competition) {
-      return NextResponse.json({ error: 'Competition not found' }, { status: 404 })
+      return NextResponse.json(
+        { error: 'Competition not found' },
+        { status: 404 }
+      )
     }
 
-    // Check authorization
-    if (session.user.role !== UserRole.SYSTEM_ADMIN) {
-      const hasAccess = competition.tournament.organizationId === session.user.organizationId || 
-                       competition.tournament.isPublic
-      if (!hasAccess) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
-    }
-
-    return NextResponse.json({
-      ...competition,
-      participantCount: competition.registrations.length,
-      phaseCount: competition.phases.length
-    })
+    return NextResponse.json(competition)
 
   } catch (error) {
-    console.error('Competition fetch error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Error fetching competition:', error)
+    
+    if (error instanceof NotificationError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.statusCode }
+      )
+    }
+
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
   }
 }
 
@@ -70,69 +107,104 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getCurrentUserSession()
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
     }
 
-    const { id } = params
+    const competitionId = params.id
+    if (!competitionId) {
+      return NextResponse.json(
+        { error: 'Competition ID is required' },
+        { status: 400 }
+      )
+    }
+
     const body = await request.json()
-    
-    const validationResult = UpdateCompetitionSchema.safeParse(body)
-    if (!validationResult.success) {
-      return NextResponse.json(formatValidationErrors(validationResult.error), { status: 400 })
-    }
+    const { name, weapon, category, maxParticipants, registrationDeadline, status } = body
 
-    const existingCompetition = await prisma.competition.findUnique({
-      where: { id },
-      select: { 
-        tournamentId: true,
-        weapon: true,
-        category: true,
-        tournament: { select: { organizationId: true } }
+    // Verify user has permission to edit this competition
+    const existingCompetition = await prisma.competition.findFirst({
+      where: {
+        id: competitionId,
+        tournament: {
+          OR: [
+            { organizationId: session.user.organizationId },
+            { isPublic: true }
+          ]
+        }
+      },
+      include: {
+        tournament: true
       }
     })
 
     if (!existingCompetition) {
-      return NextResponse.json({ error: 'Competition not found' }, { status: 404 })
+      return NextResponse.json(
+        { error: 'Competition not found' },
+        { status: 404 }
+      )
     }
 
-    if (!AuthValidators.canUpdateCompetition(session.user.role as UserRole, session.user.organizationId, existingCompetition.tournament.organizationId)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // Check if user has permission to edit
+    if (existingCompetition.tournament.organizationId !== session.user.organizationId && 
+        session.user.role !== 'SYSTEM_ADMIN') {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      )
     }
 
-    const { translations, ...competitionData } = validationResult.data
-
-    const competition = await prisma.$transaction(async (tx: any) => {
-      const updated = await tx.competition.update({
-        where: { id },
-        data: competitionData
-      })
-
-      if (translations) {
-        await tx.competitionTranslation.deleteMany({ where: { competitionId: id } })
-        const translationData = Object.entries(translations).map(([locale, translation]: [string, any]) => ({
-          competitionId: id,
-          locale,
-          name: translation.name
-        }))
-        await tx.competitionTranslation.createMany({ data: translationData })
-      }
-
-      return tx.competition.findUnique({
-        where: { id },
-        include: {
-          translations: true,
-          tournament: { select: { id: true, name: true } }
+    // Update competition
+    const updatedCompetition = await prisma.competition.update({
+      where: { id: competitionId },
+      data: {
+        name,
+        weapon,
+        category,
+        maxParticipants: maxParticipants ? parseInt(maxParticipants) : null,
+        registrationDeadline: registrationDeadline ? new Date(registrationDeadline) : null,
+        status
+      },
+      include: {
+        tournament: {
+          include: {
+            organization: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        },
+        _count: {
+          select: {
+            registrations: true,
+            phases: true
+          }
         }
-      })
+      }
     })
 
-    return NextResponse.json(competition)
+    return NextResponse.json(updatedCompetition)
 
   } catch (error) {
-    console.error('Competition update error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Error updating competition:', error)
+    
+    if (error instanceof NotificationError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.statusCode }
+      )
+    }
+
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
   }
 }
 
@@ -142,43 +214,74 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getCurrentUserSession()
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
     }
 
-    const { id } = params
+    const competitionId = params.id
+    if (!competitionId) {
+      return NextResponse.json(
+        { error: 'Competition ID is required' },
+        { status: 400 }
+      )
+    }
 
-    const existingCompetition = await prisma.competition.findUnique({
-      where: { id },
-      select: { 
-        status: true,
-        tournament: { select: { organizationId: true } },
-        _count: { select: { registrations: true, phases: true } }
+    // Verify user has permission to delete this competition
+    const existingCompetition = await prisma.competition.findFirst({
+      where: {
+        id: competitionId,
+        tournament: {
+          OR: [
+            { organizationId: session.user.organizationId },
+            { isPublic: true }
+          ]
+        }
+      },
+      include: {
+        tournament: true
       }
     })
 
     if (!existingCompetition) {
-      return NextResponse.json({ error: 'Competition not found' }, { status: 404 })
+      return NextResponse.json(
+        { error: 'Competition not found' },
+        { status: 404 }
+      )
     }
 
-    if (!AuthValidators.canDeleteCompetition(session.user.role as UserRole, session.user.organizationId, existingCompetition.tournament.organizationId)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // Check if user has permission to delete
+    if (existingCompetition.tournament.organizationId !== session.user.organizationId && 
+        session.user.role !== 'SYSTEM_ADMIN') {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      )
     }
 
-    if (existingCompetition.status === 'IN_PROGRESS') {
-      return NextResponse.json({ error: 'Cannot delete competition that is in progress' }, { status: 400 })
-    }
+    // Delete competition (cascade will handle related records)
+    await prisma.competition.delete({
+      where: { id: competitionId }
+    })
 
-    if (existingCompetition._count.registrations > 0 || existingCompetition._count.phases > 0) {
-      return NextResponse.json({ error: 'Cannot delete competition with existing data' }, { status: 400 })
-    }
-
-    await prisma.competition.delete({ where: { id } })
-    return NextResponse.json({ message: 'Competition deleted successfully' })
+    return NextResponse.json({ success: true })
 
   } catch (error) {
-    console.error('Competition deletion error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Error deleting competition:', error)
+    
+    if (error instanceof NotificationError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.statusCode }
+      )
+    }
+
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
   }
 } 
