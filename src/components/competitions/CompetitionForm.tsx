@@ -20,10 +20,15 @@ interface CompetitionFormData {
 }
 
 interface CompetitionFormProps {
+  mode?: 'create' | 'edit'
   competition?: Competition | null
-  onSuccess: () => void
+  onSubmit?: (formData: any) => Promise<void> | void
+  onSuccess?: () => void // Legacy callback for backward compatibility
   onCancel: () => void
-  availableTournaments: Tournament[]
+  loading?: boolean
+  availableTournaments?: Tournament[]
+  organizationId?: string
+  preselectedTournamentId?: string
 }
 
 const initialFormData: CompetitionFormData = {
@@ -36,18 +41,55 @@ const initialFormData: CompetitionFormData = {
 }
 
 export default function CompetitionForm({
+  mode,
   competition,
+  onSubmit,
   onSuccess,
   onCancel,
-  availableTournaments
+  loading: externalLoading = false,
+  availableTournaments,
+  organizationId,
+  preselectedTournamentId
 }: CompetitionFormProps) {
   const [formData, setFormData] = useState<CompetitionFormData>(initialFormData)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
+  const [tournaments, setTournaments] = useState<Tournament[]>(availableTournaments || [])
 
-  const isEditing = !!competition
+  const isEditing = mode === 'edit' || !!competition
 
-  // Populate form when editing
+  // Fetch tournaments if not provided
+  useEffect(() => {
+    if (!availableTournaments) {
+      const fetchTournaments = async () => {
+        try {
+          const params = new URLSearchParams({ limit: '100', offset: '0' })
+          if (organizationId) {
+            params.append('organizationId', organizationId)
+          }
+          
+          const response = await apiFetch(`/api/tournaments?${params.toString()}`)
+          const data = await response.json()
+          
+          if (data.tournaments) {
+            setTournaments(data.tournaments.map((t: any) => ({
+              id: t.id,
+              name: t.name,
+              organizationId: t.organizationId
+            })))
+          }
+        } catch (err) {
+          console.error('Error fetching tournaments:', err)
+        }
+      }
+      
+      fetchTournaments()
+    } else {
+      setTournaments(availableTournaments)
+    }
+  }, [availableTournaments, organizationId])
+
+  // Populate form when editing or when preselectedTournamentId changes
   useEffect(() => {
     if (competition) {
       setFormData({
@@ -61,10 +103,13 @@ export default function CompetitionForm({
         tournamentId: competition.tournamentId
       })
     } else {
-      setFormData(initialFormData)
+      setFormData({
+        ...initialFormData,
+        tournamentId: preselectedTournamentId || ''
+      })
     }
     setErrors({})
-  }, [competition])
+  }, [competition, preselectedTournamentId])
 
   const handleInputChange = (field: keyof CompetitionFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -111,7 +156,10 @@ export default function CompetitionForm({
       return
     }
 
-    setLoading(true)
+    const isUsingExternalLoading = !!onSubmit
+    if (!isUsingExternalLoading) {
+      setLoading(true)
+    }
 
     try {
       const payload = {
@@ -119,25 +167,33 @@ export default function CompetitionForm({
         registrationDeadline: formData.registrationDeadline || null
       }
 
-      if (isEditing && competition) {
-        // Update existing competition
-        await apiFetch(`/api/competitions/${competition.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        })
-        notify.success('Competition updated successfully')
+      if (onSubmit) {
+        // Use external submit handler (new pattern)
+        await onSubmit(payload)
       } else {
-        // Create new competition
-        await apiFetch('/api/competitions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        })
-        notify.success('Competition created successfully')
+        // Use internal submit logic (legacy pattern)
+        if (isEditing && competition) {
+          // Update existing competition
+          await apiFetch(`/api/competitions/${competition.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          })
+          notify.success('Competition updated successfully')
+        } else {
+          // Create new competition
+          await apiFetch('/api/competitions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          })
+          notify.success('Competition created successfully')
+        }
+        
+        if (onSuccess) {
+          onSuccess()
+        }
       }
-      
-      onSuccess()
     } catch (err: any) {
       console.error('Error saving competition:', err)
       
@@ -148,10 +204,15 @@ export default function CompetitionForm({
         })
         notify.error('This weapon and category combination already exists in the tournament')
       } else {
-        notify.error(isEditing ? 'Failed to update competition' : 'Failed to create competition')
+        if (!onSubmit) { // Only show error if not using external handler
+          notify.error(isEditing ? 'Failed to update competition' : 'Failed to create competition')
+        }
+        throw err // Re-throw for external handler
       }
     } finally {
-      setLoading(false)
+      if (!isUsingExternalLoading) {
+        setLoading(false)
+      }
     }
   }
 
@@ -184,6 +245,8 @@ export default function CompetitionForm({
     'Open Mixed'
   ]
 
+  const isFormLoading = loading || externalLoading
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -195,6 +258,7 @@ export default function CompetitionForm({
             <button
               onClick={onCancel}
               className="text-gray-400 hover:text-gray-600 transition-colors"
+              disabled={isFormLoading}
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -203,6 +267,35 @@ export default function CompetitionForm({
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Tournament Selection */}
+            <div>
+              <label htmlFor="tournamentId" className="block text-sm font-medium text-gray-700 mb-2">
+                Tournament *
+              </label>
+              <select
+                id="tournamentId"
+                value={formData.tournamentId}
+                onChange={(e) => handleInputChange('tournamentId', e.target.value)}
+                disabled={!!preselectedTournamentId || isFormLoading}
+                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.tournamentId ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+                } ${(preselectedTournamentId || isFormLoading) ? 'bg-gray-100' : ''}`}
+              >
+                <option value="">Select a tournament</option>
+                {tournaments.map((tournament) => (
+                  <option key={tournament.id} value={tournament.id}>
+                    {tournament.name}
+                  </option>
+                ))}
+              </select>
+              {errors.tournamentId && (
+                <p className="mt-1 text-sm text-red-600">{errors.tournamentId}</p>
+              )}
+              {preselectedTournamentId && (
+                <p className="mt-1 text-sm text-gray-500">Tournament is preselected for this context</p>
+              )}
+            </div>
+
             {/* Competition Name */}
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
@@ -213,143 +306,125 @@ export default function CompetitionForm({
                 id="name"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
+                disabled={isFormLoading}
                 className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   errors.name ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
                 }`}
                 placeholder="e.g., Senior Men Épée"
               />
-              {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+              {errors.name && (
+                <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+              )}
             </div>
 
-            {/* Tournament Selection */}
+            {/* Weapon Selection */}
             <div>
-              <label htmlFor="tournamentId" className="block text-sm font-medium text-gray-700 mb-2">
-                Tournament *
+              <label htmlFor="weapon" className="block text-sm font-medium text-gray-700 mb-2">
+                Weapon *
               </label>
               <select
-                id="tournamentId"
-                value={formData.tournamentId}
-                onChange={(e) => handleInputChange('tournamentId', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.tournamentId ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-                }`}
+                id="weapon"
+                value={formData.weapon}
+                onChange={(e) => handleInputChange('weapon', e.target.value as any)}
+                disabled={isFormLoading}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">Select Tournament</option>
-                {availableTournaments.map((tournament) => (
-                  <option key={tournament.id} value={tournament.id}>
-                    {tournament.name}
+                {weaponOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.icon} {option.label}
                   </option>
                 ))}
               </select>
-              {errors.tournamentId && <p className="mt-1 text-sm text-red-600">{errors.tournamentId}</p>}
             </div>
 
-            {/* Weapon and Category Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Weapon */}
-              <div>
-                <label htmlFor="weapon" className="block text-sm font-medium text-gray-700 mb-2">
-                  Weapon *
-                </label>
-                <select
-                  id="weapon"
-                  value={formData.weapon}
-                  onChange={(e) => handleInputChange('weapon', e.target.value as 'EPEE' | 'FOIL' | 'SABRE')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {weaponOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.icon} {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Category */}
-              <div>
-                <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
-                  Category *
-                </label>
-                <select
-                  id="category"
-                  value={formData.category}
-                  onChange={(e) => handleInputChange('category', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.category ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-                  }`}
-                >
-                  <option value="">Select Category</option>
-                  {categoryOptions.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
-                {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
-              </div>
+            {/* Category */}
+            <div>
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
+                Category *
+              </label>
+              <select
+                id="category"
+                value={formData.category}
+                onChange={(e) => handleInputChange('category', e.target.value)}
+                disabled={isFormLoading}
+                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.category ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+                }`}
+              >
+                <option value="">Select a category</option>
+                {categoryOptions.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+              {errors.category && (
+                <p className="mt-1 text-sm text-red-600">{errors.category}</p>
+              )}
             </div>
 
-            {/* Status and Registration Deadline Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Status */}
-              <div>
-                <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
-                  Status *
-                </label>
-                <select
-                  id="status"
-                  value={formData.status}
-                  onChange={(e) => handleInputChange('status', e.target.value as CompetitionFormData['status'])}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {statusOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            {/* Status */}
+            <div>
+              <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
+                Status
+              </label>
+              <select
+                id="status"
+                value={formData.status}
+                onChange={(e) => handleInputChange('status', e.target.value as any)}
+                disabled={isFormLoading}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                {statusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-              {/* Registration Deadline */}
-              <div>
-                <label htmlFor="registrationDeadline" className="block text-sm font-medium text-gray-700 mb-2">
-                  Registration Deadline
-                </label>
-                <input
-                  type="date"
-                  id="registrationDeadline"
-                  value={formData.registrationDeadline}
-                  onChange={(e) => handleInputChange('registrationDeadline', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.registrationDeadline ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-                  }`}
-                />
-                {errors.registrationDeadline && <p className="mt-1 text-sm text-red-600">{errors.registrationDeadline}</p>}
-              </div>
+            {/* Registration Deadline */}
+            <div>
+              <label htmlFor="registrationDeadline" className="block text-sm font-medium text-gray-700 mb-2">
+                Registration Deadline
+              </label>
+              <input
+                type="date"
+                id="registrationDeadline"
+                value={formData.registrationDeadline}
+                onChange={(e) => handleInputChange('registrationDeadline', e.target.value)}
+                disabled={isFormLoading}
+                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.registrationDeadline ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+                }`}
+              />
+              {errors.registrationDeadline && (
+                <p className="mt-1 text-sm text-red-600">{errors.registrationDeadline}</p>
+              )}
             </div>
 
             {/* Form Actions */}
-            <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+            <div className="flex justify-end space-x-3 pt-6 border-t">
               <button
                 type="button"
                 onClick={onCancel}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                disabled={isFormLoading}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={loading}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                disabled={isFormLoading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 flex items-center"
               >
-                {loading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    {isEditing ? 'Updating...' : 'Creating...'}
-                  </div>
-                ) : (
-                  isEditing ? 'Update Competition' : 'Create Competition'
+                {isFormLoading && (
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
                 )}
+                {isEditing ? 'Update Competition' : 'Create Competition'}
               </button>
             </div>
           </form>
