@@ -31,4 +31,35 @@ body {
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
+
+  /* Fix input field readability */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="time"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  select,
+  textarea {
+    color: #1f2937 !important; /* Dark gray text */
+    background-color: white !important;
+  }
+
+  /* Ensure placeholder text is visible */
+  input::placeholder,
+  textarea::placeholder {
+    color: #6b7280 !important; /* Medium gray for placeholders */
+  }
+
+  /* Disabled input styling */
+  input:disabled,
+  select:disabled,
+  textarea:disabled {
+    background-color: #f3f4f6 !important; /* Light gray background for disabled */
+    color: #6b7280 !important; /* Medium gray text for disabled */
+  }
 }
