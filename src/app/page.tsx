@@ -1,39 +1,6 @@
-import AuthButton from "@/components/AuthButton";
-
 export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
-              <h1 className="text-3xl font-bold text-gray-900">⚔️ Enguardia</h1>
-              <span className="ml-3 text-sm text-gray-500">
-                Fencing Tournament Management
-              </span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <nav className="flex space-x-4">
-                <a
-                  href="/"
-                  className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-                >
-                  Home
-          </a>
-          <a
-                  href="/events"
-                  className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-                >
-                  Tournaments
-                </a>
-              </nav>
-              <AuthButton />
-            </div>
-          </div>
-        </div>
-      </header>
-
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <div className="text-center">
@@ -47,7 +14,7 @@ export default function Home() {
         </div>
 
         {/* Features Grid */}
-        <div className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <a href="/events" className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200 block">
             <div className="p-6">
               <div className="flex items-center">
@@ -60,6 +27,24 @@ export default function Home() {
                   </h3>
                   <p className="text-sm text-gray-500">
                     Create and manage fencing tournaments with multiple competitions
+                  </p>
+                </div>
+              </div>
+            </div>
+          </a>
+
+          <a href="/competitions" className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200 block">
+            <div className="p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="text-2xl">⚔️</div>
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Competition Management
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Manage individual competitions within tournaments by weapon and category
                   </p>
                 </div>
               </div>
@@ -88,7 +73,7 @@ export default function Home() {
             <div className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="text-2xl">⚔️</div>
+                  <div className="text-2xl">🏁</div>
                 </div>
                 <div className="ml-4">
                   <h3 className="text-lg font-medium text-gray-900">
