@@ -6,6 +6,7 @@ import { UserRole } from "@prisma/client"
 import { notify, apiFetch, NotificationError, confirmDelete, getMessage } from "@/lib/notifications"
 import TournamentList from "./TournamentList"
 import TournamentForm from "./TournamentForm"
+import TournamentCompetitions from "./TournamentCompetitions"
 
 export interface Tournament {
   id: string
@@ -289,6 +290,13 @@ export default function TournamentManagement({ organizationId }: TournamentManag
                 </div>
               )}
             </div>
+            
+            {/* Competition Management Section */}
+            <TournamentCompetitions 
+              tournamentId={selectedTournament.id}
+              tournamentName={selectedTournament.name}
+              organizationId={selectedTournament.organizationId}
+            />
           </div>
         )
       
