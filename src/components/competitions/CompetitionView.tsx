@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { apiFetch, notify } from '@shared/notifications'
+import { apiFetch, notify } from '@/lib/notifications'
 import { useRoleCheck } from '@/lib/auth-client'
 
 interface Competition {
@@ -31,8 +31,11 @@ interface Competition {
   registrations?: Array<{
     id: string
     athlete: {
-      name: string
-      email: string
+      id: string
+      firstName: string
+      lastName: string
+      nationality?: string
+      fieId?: string
     }
     seedNumber?: number
     status: string
@@ -82,12 +85,24 @@ export default function CompetitionView({ competitionId }: CompetitionViewProps)
       setLoading(true)
       setError(null)
       
+      console.log('Fetching competition with ID:', competitionId)
       const response = await apiFetch(`/api/competitions/${competitionId}`)
-      setCompetition(response)
+      console.log('Response status:', response.status)
+      console.log('Response headers:', response.headers)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('API Error Response:', errorText)
+        throw new Error(`HTTP ${response.status}: ${errorText}`)
+      }
+      
+      const data = await response.json()
+      console.log('Received competition data:', data)
+      setCompetition(data)
     } catch (err: any) {
       console.error('Error fetching competition:', err)
       setError(err.message || 'Failed to load competition')
-      notify.error('Failed to load competition details')
+      notify.error(`Failed to load competition details: ${err.message}`)
     } finally {
       setLoading(false)
     }
