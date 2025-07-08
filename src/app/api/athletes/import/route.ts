@@ -11,6 +11,7 @@ const importRequestSchema = z.object({
   organizationId: z.string().optional(),
   duplicateStrategy: z.enum(['skip', 'update', 'error']).default('skip'),
   createAffiliations: z.boolean().default(true),
+  createClubs: z.boolean().default(true),
 });
 
 // POST /api/athletes/import - Import athletes from FIE XML/CSV
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { fileType, fileContent, organizationId, duplicateStrategy, createAffiliations } = 
+    const { fileType, fileContent, organizationId, duplicateStrategy, createAffiliations, createClubs } = 
       importRequestSchema.parse(body);
 
     // Parse the file based on type
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest) {
       skipped: 0,
       errors: [] as string[],
       athletes: [] as any[],
+      clubsCreated: 0,
     };
 
     for (const parsedAthlete of parsedAthletes) {
@@ -76,23 +78,34 @@ export async function POST(request: NextRequest) {
             case 'skip':
               results.skipped++;
               
-              // Still create affiliation if requested and doesn't exist
+              // Still create affiliations if requested and doesn't exist
               if (createAffiliations && organizationId) {
                 await createOrganizationAffiliation(existingAthlete.id, organizationId);
+                
+                // Handle club association for existing athlete
+                if (createClubs && parsedAthlete.club) {
+                  const clubResult = await findOrCreateClub(parsedAthlete.club, organizationId);
+                  if (clubResult.club) {
+                    await createClubAffiliation(existingAthlete.id, clubResult.club.id);
+                    if (clubResult.created) results.clubsCreated++;
+                  }
+                }
               }
               continue;
               
             case 'update':
-              const updatedAthlete = await updateAthlete(existingAthlete.id, parsedAthlete, organizationId, createAffiliations);
+              const { athlete: updatedAthlete, clubCreated } = await updateAthlete(existingAthlete.id, parsedAthlete, organizationId, createAffiliations, createClubs);
               results.updated++;
               results.athletes.push(updatedAthlete);
+              if (clubCreated) results.clubsCreated++;
               continue;
           }
         } else {
           // Create new athlete
-          const newAthlete = await createAthlete(parsedAthlete, organizationId, createAffiliations);
+          const { athlete: newAthlete, clubCreated } = await createAthlete(parsedAthlete, organizationId, createAffiliations, createClubs);
           results.created++;
           results.athletes.push(newAthlete);
+          if (clubCreated) results.clubsCreated++;
         }
       } catch (error) {
         results.errors.push(`Error processing ${parsedAthlete.firstName} ${parsedAthlete.lastName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -101,7 +114,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Import completed: ${results.created} created, ${results.updated} updated, ${results.skipped} skipped`,
+      message: `Import completed: ${results.created} created, ${results.updated} updated, ${results.skipped} skipped${results.clubsCreated > 0 ? `, ${results.clubsCreated} clubs created` : ''}`,
       results,
     });
 
@@ -181,7 +194,7 @@ async function createOrganizationAffiliation(athleteId: string, organizationId: 
 }
 
 // Helper function to update existing athlete
-async function updateAthlete(athleteId: string, parsedAthlete: ParsedAthlete, organizationId?: string, createAffiliations = true) {
+async function updateAthlete(athleteId: string, parsedAthlete: ParsedAthlete, organizationId?: string, createAffiliations = true, createClubs = true) {
   const updatedAthlete = await prisma.athlete.update({
     where: { id: athleteId },
     data: {
@@ -196,6 +209,13 @@ async function updateAthlete(athleteId: string, parsedAthlete: ParsedAthlete, or
       organizations: {
         include: {
           organization: {
+            select: { id: true, name: true },
+          },
+        },
+      },
+      clubs: {
+        include: {
+          club: {
             select: { id: true, name: true },
           },
         },
@@ -227,11 +247,21 @@ async function updateAthlete(athleteId: string, parsedAthlete: ParsedAthlete, or
     await createOrganizationAffiliation(athleteId, organizationId);
   }
 
-  return updatedAthlete;
+  // Handle club association for updated athlete
+  let clubCreated = false;
+  if (createClubs && parsedAthlete.club && organizationId) {
+    const clubResult = await findOrCreateClub(parsedAthlete.club, organizationId);
+    if (clubResult.club) {
+      await createClubAffiliation(athleteId, clubResult.club.id);
+      clubCreated = clubResult.created;
+    }
+  }
+
+  return { athlete: updatedAthlete, clubCreated };
 }
 
 // Helper function to create new athlete
-async function createAthlete(parsedAthlete: ParsedAthlete, organizationId?: string, createAffiliations = true) {
+async function createAthlete(parsedAthlete: ParsedAthlete, organizationId?: string, createAffiliations = true, createClubs = true) {
   const newAthlete = await prisma.athlete.create({
     data: {
       firstName: parsedAthlete.firstName,
@@ -264,8 +294,80 @@ async function createAthlete(parsedAthlete: ParsedAthlete, organizationId?: stri
           },
         },
       },
+      clubs: {
+        include: {
+          club: {
+            select: { id: true, name: true },
+          },
+        },
+      },
     },
   });
 
-  return newAthlete;
+  // Handle club association for new athlete
+  let clubCreated = false;
+  if (createClubs && parsedAthlete.club && organizationId) {
+    const clubResult = await findOrCreateClub(parsedAthlete.club, organizationId);
+    if (clubResult.club) {
+      await createClubAffiliation(newAthlete.id, clubResult.club.id);
+      clubCreated = clubResult.created;
+    }
+  }
+
+  return { athlete: newAthlete, clubCreated };
+}
+
+// Helper function to find or create a club
+async function findOrCreateClub(clubName: string, organizationId: string) {
+  // Find existing club within the organization
+  const existingClub = await prisma.club.findFirst({
+    where: {
+      name: { equals: clubName, mode: 'insensitive' },
+      organizationId: organizationId,
+    },
+  });
+
+  if (existingClub) {
+    return { club: existingClub, created: false };
+  }
+
+  try {
+    // Create new club within the organization
+    const newClub = await prisma.club.create({
+      data: {
+        name: clubName,
+        organizationId,
+      },
+    });
+    return { club: newClub, created: true };
+  } catch (error) {
+    console.warn(`Could not create club ${clubName} in organization ${organizationId}:`, error);
+    return { club: null, created: false };
+  }
+}
+
+// Helper function to create club affiliation
+async function createClubAffiliation(athleteId: string, clubId: string) {
+  try {
+    await prisma.athleteClub.upsert({
+      where: {
+        athleteId_clubId: {
+          athleteId,
+          clubId,
+        },
+      },
+      create: {
+        athleteId,
+        clubId,
+        membershipType: 'MEMBER',
+        status: 'ACTIVE',
+        isPrimary: true, // Make it primary if it's their first club
+      },
+      update: {
+        status: 'ACTIVE', // Reactivate if previously inactive
+      },
+    });
+  } catch (error) {
+    console.warn(`Could not create club affiliation for athlete ${athleteId} in club ${clubId}:`, error);
+  }
 } 
