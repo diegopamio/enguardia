@@ -99,6 +99,7 @@ model Athlete {
   // Relations (NO organizationId - shared globally)
   weapons              AthleteWeapon[]
   organizations        AthleteOrganization[]
+  clubs                AthleteClub[]
   competitionRegistrations CompetitionRegistration[]
   pouleAssignments     PouleAssignment[]
   pouleMatchesA        PouleMatch[] @relation("AthleteA")
@@ -136,6 +137,29 @@ model AthleteOrganization {
   @@map("athlete_organizations")
 }
 
+// Athlete-Club membership (many-to-many - athletes can train at multiple clubs)
+model AthleteClub {
+  id             String            @id @default(cuid())
+  athleteId      String
+  clubId         String
+  membershipType ClubMembershipType @default(MEMBER)
+  status         MembershipStatus  @default(ACTIVE)
+  isPrimary      Boolean           @default(false) // One primary club per athlete
+  joinedAt       DateTime          @default(now())
+  leftAt         DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  // Relations
+  athlete        Athlete           @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  club           Club              @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  
+  @@unique([athleteId, clubId])
+  @@index([clubId])
+  @@index([athleteId])
+  @@map("athlete_clubs")
+}
+
 enum MembershipType {
   MEMBER
   GUEST
@@ -146,6 +170,14 @@ enum MembershipStatus {
   ACTIVE
   INACTIVE
   SUSPENDED
+}
+
+enum ClubMembershipType {
+  MEMBER
+  GUEST
+  TRAINEE
+  COACH
+  STAFF
 }
 
 // Athlete weapon specializations (shared globally)
@@ -204,6 +236,7 @@ model Club {
 
   // Relations
   organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  athletes       AthleteClub[]
   translations   ClubTranslation[]
 
   @@index([organizationId])
