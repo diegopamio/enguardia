@@ -274,14 +274,25 @@ export const messages = {
 // Get user's preferred language
 export function getPreferredLanguage(): keyof typeof messages {
   if (typeof window !== 'undefined') {
-    const storedLang = localStorage.getItem('language')
-    if (storedLang && storedLang in messages) {
-      return storedLang as keyof typeof messages
+    try {
+      const storedLang = localStorage.getItem('language')
+      if (storedLang && storedLang in messages) {
+        return storedLang as keyof typeof messages
+      }
+    } catch (e) {
+      // localStorage not available or blocked, continue to browser language detection
+      console.warn('localStorage not available for language detection:', e)
     }
     
-    const browserLang = navigator.language.slice(0, 2)
-    if (browserLang in messages) {
-      return browserLang as keyof typeof messages
+    // Fallback to browser language
+    try {
+      const browserLang = navigator.language.slice(0, 2)
+      if (browserLang in messages) {
+        return browserLang as keyof typeof messages
+      }
+    } catch (e) {
+      // Navigator not available, use default
+      console.warn('Navigator language detection failed:', e)
     }
   }
   return 'en' // Default fallback
@@ -478,7 +489,10 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
 
 // Confirmation dialog utility
 export function confirmAction(message: string): boolean {
-  return window.confirm(message)
+  if (typeof window !== 'undefined') {
+    return window.confirm(message)
+  }
+  return false // Default to false if window is not available
 }
 
 // Enhanced confirmation with custom messages

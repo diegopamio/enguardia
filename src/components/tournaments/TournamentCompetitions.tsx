@@ -205,7 +205,9 @@ export default function TournamentCompetitions({
 
   // Handle view competition details
   const handleViewCompetition = useCallback((competitionId: string) => {
-    window.location.href = `/competitions/${competitionId}`
+                            if (typeof window !== 'undefined') {
+                          window.location.href = `/competitions/${competitionId}`
+                        }
   }, [])
 
   // Weapon icons

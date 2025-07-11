@@ -236,13 +236,13 @@ async function main() {
 
   console.log('✅ Created athlete-organization memberships')
 
-  // Create clubs within organizations
+  // Create clubs
   const club1 = await prisma.club.create({
     data: {
       name: 'Club Esgrima Chamartín',
       city: 'Madrid',
-      country: 'Spain',
-      organizationId: organization1.id,
+      country: 'ES',
+      imageUrl: 'https://pbs.twimg.com/profile_images/1118084799/cech_400x400.png',
     },
   })
 
@@ -250,12 +250,61 @@ async function main() {
     data: {
       name: 'Golden Gate Fencing Club',
       city: 'San Francisco',
-      country: 'USA',
-      organizationId: organization2.id,
+      country: 'US',
+      imageUrl: 'https://ggfc.org/images/logo-red.png',
+    },
+  })
+
+  const club3 = await prisma.club.create({
+    data: {
+      name: 'Paris Escrime Club',
+      city: 'Paris',
+      country: 'FR',
+      imageUrl: 'https://www.paris-cep.fr/wp-content/uploads/2018/09/logo-cep.png',
     },
   })
 
   console.log('✅ Created clubs')
+
+  // Create club-organization affiliations
+  await prisma.clubOrganization.create({
+    data: {
+      clubId: club1.id,
+      organizationId: organization1.id,
+      affiliationType: 'MEMBER',
+      status: 'ACTIVE',
+    },
+  })
+
+  await prisma.clubOrganization.create({
+    data: {
+      clubId: club2.id,
+      organizationId: organization2.id,
+      affiliationType: 'MEMBER',
+      status: 'ACTIVE',
+    },
+  })
+
+  // Make club3 available to both organizations as a partner
+  await prisma.clubOrganization.create({
+    data: {
+      clubId: club3.id,
+      organizationId: organization1.id,
+      affiliationType: 'PARTNER',
+      status: 'ACTIVE',
+    },
+  })
+
+  await prisma.clubOrganization.create({
+    data: {
+      clubId: club3.id,
+      organizationId: organization2.id,
+      affiliationType: 'PARTNER',
+      status: 'ACTIVE',
+    },
+  })
+
+  console.log('✅ Created club-organization affiliations')
 
   // Create demo tournaments (new architecture)
   const tournament1 = await prisma.tournament.create({

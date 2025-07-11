@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { getCountryName } from '@/lib/countries';
 
 interface Athlete {
   id: string;
@@ -101,7 +102,7 @@ export default function AthleteList({
                 </h3>
                 <div className="text-sm text-gray-600 space-y-1">
                   {athlete.nationality && (
-                    <div>🌍 {athlete.nationality}</div>
+                    <div>🌍 {getCountryName(athlete.nationality)}</div>
                   )}
                   {athlete.fieId && (
                     <div>🆔 FIE: {athlete.fieId}</div>
@@ -148,7 +149,10 @@ export default function AthleteList({
                       <span className="font-medium">🏟️ {clubAffiliation.club.name}</span>
                       {(clubAffiliation.club.city || clubAffiliation.club.country) && (
                         <span className="text-gray-500 ml-1">
-                          ({[clubAffiliation.club.city, clubAffiliation.club.country].filter(Boolean).join(', ')})
+                          ({[
+                            clubAffiliation.club.city, 
+                            clubAffiliation.club.country ? getCountryName(clubAffiliation.club.country) : null
+                          ].filter(Boolean).join(', ')})
                         </span>
                       )}
                       {clubAffiliation.isPrimary && (
