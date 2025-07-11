@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react"
 import { useRoleCheck } from "@/lib/auth-client"
 import { notify, apiFetch, NotificationError, confirmDelete } from "@/lib/notifications"
 import CompetitionForm from "../competitions/CompetitionForm"
+import CompetitionRoster from "./CompetitionRoster"
 
 interface Competition {
   id: string
@@ -40,6 +41,7 @@ export default function TournamentCompetitions({
   const [competitions, setCompetitions] = useState<Competition[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [viewingRoster, setViewingRoster] = useState<Competition | null>(null)
 
   // Role-based access control
   const canCreate = isSystemAdmin() || isOrganizationAdmin()
@@ -205,9 +207,16 @@ export default function TournamentCompetitions({
 
   // Handle view competition details
   const handleViewCompetition = useCallback((competitionId: string) => {
-                            if (typeof window !== 'undefined') {
-                          window.location.href = `/competitions/${competitionId}`
-                        }
+    // Find the competition to view roster for
+    const competition = competitions.find(c => c.id === competitionId)
+    if (competition) {
+      setViewingRoster(competition)
+    }
+  }, [competitions])
+
+  // Handle roster view back
+  const handleRosterBack = useCallback(() => {
+    setViewingRoster(null)
   }, [])
 
   // Weapon icons
@@ -251,6 +260,23 @@ export default function TournamentCompetitions({
           preselectedTournamentId={tournamentId}
         />
       </div>
+    )
+  }
+
+  // Roster view
+  if (viewingRoster) {
+    return (
+      <CompetitionRoster
+        competitionId={viewingRoster.id}
+        competition={{
+          id: viewingRoster.id,
+          name: viewingRoster.name,
+          weapon: viewingRoster.weapon,
+          category: viewingRoster.category,
+          status: viewingRoster.status
+        }}
+        onBack={handleRosterBack}
+      />
     )
   }
 
@@ -317,6 +343,15 @@ export default function TournamentCompetitions({
 
               {(canEdit || canDelete) && (
                 <div className="flex justify-end space-x-2 mt-4" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleViewCompetition(competition.id)
+                    }}
+                    className="text-green-600 hover:text-green-800 text-sm font-medium"
+                  >
+                    View Roster
+                  </button>
                   {canEdit && (
                     <button
                       onClick={(e) => {

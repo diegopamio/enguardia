@@ -175,7 +175,7 @@ export default function CompetitionManagement({
         return (
           <CompetitionList
             competitions={competitions}
-            tournaments={availableTournaments}
+            availableTournaments={availableTournaments}
             loading={competitionsLoading}
             searchTerm={searchTerm}
             weaponFilter={weaponFilter}

@@ -28,8 +28,9 @@ export interface Competition {
 
 interface CompetitionListProps {
   competitions: Competition[]
-  onEdit: (competition: Competition) => void
-  onDelete: (id: string) => void
+  onEdit?: (competition: Competition) => void
+  onDelete?: (id: string) => void
+  onCreate?: () => void
   loading: boolean
   totalCount: number
   currentPage: number
@@ -44,12 +45,14 @@ interface CompetitionListProps {
   tournamentFilter: string
   onTournamentFilterChange: (tournamentId: string) => void
   availableTournaments: Array<{ id: string; name: string }>
+  deletingId?: string
 }
 
 export default function CompetitionList({
   competitions,
   onEdit,
   onDelete,
+  onCreate,
   loading,
   totalCount,
   currentPage,
@@ -63,7 +66,8 @@ export default function CompetitionList({
   onStatusFilterChange,
   tournamentFilter,
   onTournamentFilterChange,
-  availableTournaments
+  availableTournaments,
+  deletingId
 }: CompetitionListProps) {
   const { isSystemAdmin, isOrganizationAdmin } = useRoleCheck()
   
@@ -114,6 +118,19 @@ export default function CompetitionList({
 
   return (
     <div className="space-y-6">
+      {/* Header with Create Button */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-gray-900">Competitions</h1>
+        {onCreate && (
+          <button
+            onClick={onCreate}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            Create Competition
+          </button>
+        )}
+      </div>
+
       {/* Search and Filters */}
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -209,12 +226,20 @@ export default function CompetitionList({
       ) : competitions.length === 0 ? (
         <div className="text-center p-8 bg-white rounded-lg shadow-sm border border-gray-200">
           <h3 className="text-lg font-medium text-gray-900 mb-2">No competitions found</h3>
-          <p className="text-gray-600">
+          <p className="text-gray-600 mb-4">
             {searchTerm || weaponFilter || statusFilter || tournamentFilter
               ? "Try adjusting your search criteria or filters."
               : "No competitions have been created yet."
             }
           </p>
+          {onCreate && (
+            <button
+              onClick={onCreate}
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              Create First Competition
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -290,7 +315,7 @@ export default function CompetitionList({
                 >
                   View Details
                 </button>
-                {canEdit && (
+                {canEdit && onEdit && (
                   <button
                     onClick={() => onEdit(competition)}
                     className="flex-1 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
@@ -298,7 +323,7 @@ export default function CompetitionList({
                     Edit
                   </button>
                 )}
-                {canDelete && (
+                {canDelete && onDelete && (
                   <button
                     onClick={() => handleDelete(competition)}
                     className="px-3 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
