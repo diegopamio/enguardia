@@ -1,14 +1,15 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import type { Session } from 'next-auth';
-import { apiFetch, notify } from '@/lib/notifications';
+import { Session } from 'next-auth';
+import { apiFetch } from '@/lib/notifications';
 import { getCountryName } from '@/lib/countries';
 import AthleteForm from './AthleteForm';
 import { UserRole } from '@prisma/client'; // Use the prisma-generated type
 import AthleteList from './AthleteList';
 import AthleteImport from './AthleteImport';
-import ClubSelect from '../shared/ClubSelect';
+import ClubSelect from '@/components/shared/ClubSelect';
+import ConfirmationModal from '@/components/shared/ConfirmationModal';
 
 interface Athlete {
   id: string;
@@ -63,6 +64,11 @@ export default function AthleteManagement({ session }: AthleteManagementProps) {
   const [showImport, setShowImport] = useState(false);
   const [selectedAthlete, setSelectedAthlete] = useState<Athlete | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  
+  // Confirmation modal state
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [athleteToDelete, setAthleteToDelete] = useState<Athlete | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -173,6 +179,47 @@ export default function AthleteManagement({ session }: AthleteManagementProps) {
 
   const handleRefresh = useCallback(() => {
     setRefreshKey(prev => prev + 1);
+  }, []);
+
+  const handleEdit = useCallback((athlete: Athlete) => {
+    setSelectedAthlete(athlete);
+    setShowForm(true);
+  }, []);
+
+  const handleDelete = useCallback((athlete: Athlete) => {
+    setAthleteToDelete(athlete);
+    setShowDeleteConfirmation(true);
+  }, []);
+
+  const confirmDelete = useCallback(async () => {
+    if (!athleteToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await apiFetch(`/api/athletes/${athleteToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete athlete');
+      }
+
+      // Refresh the list after successful deletion
+      handleRefresh();
+      
+      // Close modal and reset state
+      setShowDeleteConfirmation(false);
+      setAthleteToDelete(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete athlete');
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [athleteToDelete, handleRefresh]);
+
+  const cancelDelete = useCallback(() => {
+    setShowDeleteConfirmation(false);
+    setAthleteToDelete(null);
   }, []);
 
   const handleCreateSuccess = useCallback(() => {
@@ -316,9 +363,10 @@ export default function AthleteManagement({ session }: AthleteManagementProps) {
       <AthleteList
         athletes={athletes}
         loading={loading}
-        onEdit={canManageAthletes ? setSelectedAthlete : undefined}
+        onEdit={canManageAthletes ? handleEdit : undefined}
         onLoadMore={pagination?.hasMore ? handleLoadMore : undefined}
         loadingMore={loading && (pagination?.offset || 0) > 0}
+        onDelete={canManageAthletes ? handleDelete : undefined}
       />
 
       {/* Create/Edit Modal */}
@@ -340,6 +388,19 @@ export default function AthleteManagement({ session }: AthleteManagementProps) {
           onSuccess={handleImportSuccess}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirmation}
+        onClose={cancelDelete}
+        onConfirm={confirmDelete}
+        title="Delete Athlete"
+        message={athleteToDelete ? `Are you sure you want to delete ${athleteToDelete.firstName} ${athleteToDelete.lastName}? This action cannot be undone.` : ''}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+        loading={isDeleting}
+      />
     </div>
   );
 } 
