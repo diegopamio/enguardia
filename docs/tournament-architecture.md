@@ -53,6 +53,193 @@ A **Phase** represents the different stages within a competition.
 - Start/end times
 - Status (scheduled, in-progress, completed)
 
+## Global Club System
+
+### Overview
+Clubs in Enguardia are **global entities** that can be affiliated with multiple organizations. This design reflects the real-world nature of fencing clubs, which may participate in multiple federations (regional, national, international) while maintaining their own identity.
+
+### Club Architecture
+
+#### Global Club Entity
+Clubs are not owned by organizations but exist as independent global entities that can be **linked** to multiple organizations.
+
+**Key Properties:**
+- Unique global identifier
+- Name, city, country (from predefined list)
+- Global visibility and searchability
+- Creation and modification timestamps
+
+#### Organization-Club Affiliation
+The relationship between clubs and organizations is managed through a many-to-many junction table that tracks:
+- Affiliation status (ACTIVE, INACTIVE, SUSPENDED)
+- Affiliation type (MEMBER, PARTNER, AFFILIATE)
+- Start and end dates of affiliation
+- Organization-specific club settings
+
+#### Athlete-Club Membership
+Athletes can be associated with clubs through a separate many-to-many relationship:
+- Membership type (MEMBER, JUNIOR, VETERAN, GUEST)
+- Primary club designation (one per athlete)
+- Membership status (ACTIVE, INACTIVE, SUSPENDED)
+- Membership dates and history
+
+### Country Standardization
+- Countries are selected from a predefined list (ISO 3166-1 alpha-2)
+- Supports internationalization with country names in multiple languages
+- Enables proper geographic organization and filtering
+
+### Access Control and Permissions
+
+#### Club Creation
+- **System Admins**: Can create any club globally
+- **Organization Admins**: Can create clubs and automatically link them to their organization
+- **Regular Users**: Cannot create clubs directly (request-based creation)
+
+#### Club Management
+- **Club Creators**: Can edit basic club information
+- **Organization Admins**: Can edit clubs affiliated with their organization
+- **System Admins**: Can edit any club globally
+
+#### Club Affiliation Management
+- **Organization Admins**: Can link/unlink clubs to/from their organization
+- **System Admins**: Can manage any club-organization relationship
+- **Club Representatives**: Can request affiliation with organizations
+
+### Business Rules
+
+#### Club Rules
+1. **Uniqueness**: Club names must be unique within the same city/country combination
+2. **Global Visibility**: All clubs are searchable globally for athlete association
+3. **Country Validation**: Country must be selected from predefined ISO list
+4. **Modification Rights**: Only authorized users can modify club information
+
+#### Affiliation Rules
+1. **Multiple Organizations**: Clubs can be affiliated with multiple organizations simultaneously
+2. **Affiliation Status**: Each club-organization relationship has independent status
+3. **Historical Tracking**: All affiliation changes are tracked with timestamps
+4. **Auto-linking**: New clubs created by organization admins are automatically linked
+
+#### Athlete Membership Rules
+1. **Primary Club**: Each athlete can designate one primary club
+2. **Multiple Memberships**: Athletes can be members of multiple clubs
+3. **Organization Scope**: Club memberships are independent of organization memberships
+4. **Historical Tracking**: All membership changes are tracked with dates
+
+### Database Schema
+
+#### Club
+```sql
+Club {
+  id          String    @id @default(cuid())
+  name        String
+  city        String?
+  country     String    // ISO 3166-1 alpha-2 code
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdById String?
+  
+  // Relations
+  organizations   ClubOrganization[]
+  athletes        AthleteClub[]
+  createdBy       User?              @relation(fields: [createdById], references: [id])
+  
+  @@unique([name, city, country])
+  @@index([country])
+  @@index([name])
+}
+```
+
+#### ClubOrganization (Junction Table)
+```sql
+ClubOrganization {
+  id             String              @id @default(cuid())
+  clubId         String
+  organizationId String
+  affiliationType AffiliationType    @default(MEMBER)
+  status         AffiliationStatus   @default(ACTIVE)
+  startDate      DateTime            @default(now())
+  endDate        DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  
+  // Relations
+  club           Club                @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@unique([clubId, organizationId])
+  @@index([organizationId])
+}
+```
+
+#### AthleteClub (Junction Table)
+```sql
+AthleteClub {
+  id             String            @id @default(cuid())
+  athleteId      String
+  clubId         String
+  membershipType MembershipType    @default(MEMBER)
+  status         MembershipStatus  @default(ACTIVE)
+  isPrimary      Boolean           @default(false)
+  startDate      DateTime          @default(now())
+  endDate        DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  
+  // Relations
+  athlete        Athlete           @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  club           Club              @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  
+  @@unique([athleteId, clubId])
+  @@index([clubId])
+  @@index([athleteId, isPrimary])
+}
+```
+
+### API Endpoints
+
+#### Club Management
+```
+GET    /api/clubs                    # List clubs globally with filtering
+POST   /api/clubs                    # Create new club
+GET    /api/clubs/{id}               # Get club details with affiliations
+PUT    /api/clubs/{id}               # Update club information
+DELETE /api/clubs/{id}               # Delete club (if no associations)
+
+GET    /api/clubs/countries          # Get list of supported countries
+GET    /api/clubs/search?q={query}   # Search clubs globally
+```
+
+#### Club-Organization Affiliation
+```
+POST   /api/clubs/{id}/organizations/{orgId}    # Link club to organization
+PUT    /api/clubs/{id}/organizations/{orgId}    # Update affiliation details
+DELETE /api/clubs/{id}/organizations/{orgId}    # Unlink club from organization
+```
+
+#### Athlete-Club Membership
+```
+POST   /api/athletes/{id}/clubs/{clubId}        # Add athlete to club
+PUT    /api/athletes/{id}/clubs/{clubId}        # Update membership details
+DELETE /api/athletes/{id}/clubs/{clubId}        # Remove athlete from club
+PUT    /api/athletes/{id}/clubs/{clubId}/primary # Set as primary club
+```
+
+### UI/UX Considerations
+
+#### Club Creation Flow
+1. **Organization Admin**: Pre-populated organization field, automatic linking
+2. **Country Selection**: Dropdown with searchable country list
+3. **Duplicate Prevention**: Real-time validation for name+city+country uniqueness
+4. **Immediate Availability**: New clubs immediately available for athlete association
+
+#### Club Management Interface
+1. **Global Club Directory**: Searchable list of all clubs with filters
+2. **Organization View**: Clubs affiliated with current organization
+3. **Athlete Association**: Easy club selection during athlete creation/editing
+4. **Bulk Operations**: Support for importing/exporting club data
+
+This global club system provides flexibility while maintaining proper data organization and access control.
+
 ## Data Relationships
 
 ```

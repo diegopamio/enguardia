@@ -1,6 +1,5 @@
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
-import LanguageDetector from 'i18next-browser-languagedetector'
 
 // Translation resources
 const resources = {
@@ -72,22 +71,62 @@ const resources = {
   }
 }
 
+// Initialize i18n without browser detection for SSR compatibility
 i18n
-  .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     resources,
     fallbackLng: 'en',
-    debug: process.env.NODE_ENV === 'development',
+    lng: 'en', // Default language for SSR
+    debug: false, // Disable debug to avoid console noise
     
     interpolation: {
       escapeValue: false, // React already escapes values
     },
     
+    // Disable all client-side detection for SSR
     detection: {
-      order: ['localStorage', 'navigator', 'htmlTag'],
-      caches: ['localStorage'],
+      order: [], // No detection on server
+      caches: [], // No caching on server
+    },
+    
+    // SSR-specific settings
+    react: {
+      useSuspense: false, // Disable suspense for SSR
     }
   })
+
+// Client-side language detection and localStorage handling
+if (typeof window !== 'undefined') {
+  // Only run on client side
+  const detectAndSetLanguage = () => {
+    try {
+      // Check localStorage first
+      const storedLang = localStorage.getItem('i18nextLng')
+      if (storedLang && storedLang in resources) {
+        i18n.changeLanguage(storedLang)
+        return
+      }
+      
+      // Fallback to browser language
+      const browserLang = navigator.language?.slice(0, 2)
+      if (browserLang && browserLang in resources) {
+        i18n.changeLanguage(browserLang)
+        // Save to localStorage for next time
+        localStorage.setItem('i18nextLng', browserLang)
+      }
+    } catch (error) {
+      console.warn('Language detection failed:', error)
+      // Stick with default 'en'
+    }
+  }
+
+  // Detect language after DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', detectAndSetLanguage)
+  } else {
+    detectAndSetLanguage()
+  }
+}
 
 export default i18n 

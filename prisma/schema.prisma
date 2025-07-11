@@ -26,10 +26,10 @@ model Organization {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Relations - All tenant-scoped data
+  // Relations
   users                 User[]
   tournaments           Tournament[]
-  clubs                 Club[]
+  clubs                 ClubOrganization[]      // Many-to-many club relationships
   athleteOrganizations  AthleteOrganization[]
   organizationRankings  OrganizationRanking[]
   auditLogs             AuditLog[]
@@ -69,6 +69,7 @@ model User {
 
   // Relations
   createdTournaments Tournament[]
+  createdClubs       Club[]       // NEW: Clubs created by this user
   auditLogs          AuditLog[]
   
   @@index([organizationId])
@@ -224,23 +225,47 @@ model GlobalRanking {
 
 // ===== TENANT-SCOPED ENTITIES =====
 
-// Clubs - Scoped to organization
+// Clubs - Global entities that can be affiliated with multiple organizations
 model Club {
-  id             String   @id @default(cuid())
-  name           String
-  city           String?
-  country        String?
-  organizationId String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id          String   @id @default(cuid())
+  name        String
+  city        String?
+  country     String   // ISO 3166-1 alpha-2 code
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?
 
   // Relations
-  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  athletes       AthleteClub[]
-  translations   ClubTranslation[]
+  organizations ClubOrganization[]
+  athletes      AthleteClub[]
+  createdBy     User?              @relation(fields: [createdById], references: [id])
+  translations  ClubTranslation[]
 
-  @@index([organizationId])
+  @@unique([name, city, country])
+  @@index([country])
+  @@index([name])
   @@map("clubs")
+}
+
+// Club-Organization affiliations (many-to-many)
+model ClubOrganization {
+  id             String            @id @default(cuid())
+  clubId         String
+  organizationId String
+  affiliationType AffiliationType  @default(MEMBER)
+  status         AffiliationStatus @default(ACTIVE)
+  startDate      DateTime          @default(now())
+  endDate        DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  // Relations
+  club           Club              @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([clubId, organizationId])
+  @@index([organizationId])
+  @@map("club_organizations")
 }
 
 model ClubTranslation {
@@ -657,4 +682,16 @@ model AuditLogTranslation {
   
   @@unique([actionKey, locale])
   @@map("audit_log_translations")
+}
+
+enum AffiliationType {
+  MEMBER
+  PARTNER
+  AFFILIATE
+}
+
+enum AffiliationStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
 }

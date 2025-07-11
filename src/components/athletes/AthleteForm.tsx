@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { apiFetch, notify } from '@/lib/notifications';
 import { getCountryName } from '@/lib/countries';
 import ReactFlagsSelect from 'react-flags-select';
-import Select from 'react-select';
+import ClubSelect from '../shared/ClubSelect';
 
 interface Club {
   id: string;
@@ -265,77 +265,11 @@ export default function AthleteForm({ athlete, onSave, onCancel }: AthleteFormPr
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Primary Club
                 </label>
-                <Select
-                  options={filteredClubs.map(club => ({
-                    value: club.id,
-                    label: getClubDisplayName(club),
-                    imageUrl: club.imageUrl,
-                  }))}
-                  value={
-                    formData.clubId
-                      ? {
-                          value: formData.clubId,
-                          label: getClubDisplayName(clubs.find(c => c.id === formData.clubId)!),
-                          imageUrl: clubs.find(c => c.id === formData.clubId)?.imageUrl,
-                        }
-                      : null
-                  }
-                  onChange={(selectedOption) =>
-                    setFormData({ ...formData, clubId: selectedOption?.value || '' })
-                  }
-                  isLoading={loadingClubs}
-                  isClearable
-                  isSearchable
+                <ClubSelect
+                  clubs={filteredClubs}
+                  value={formData.clubId}
+                  onChange={(clubId) => setFormData({ ...formData, clubId: clubId || '' })}
                   placeholder="Search and select a club..."
-                  formatOptionLabel={({ label, imageUrl }) => {
-                    // Generate initials from club name
-                    const getInitials = (name: string) => {
-                      return name
-                        .split(' ')
-                        .map(word => word.charAt(0))
-                        .join('')
-                        .toUpperCase()
-                        .substring(0, 3);
-                    };
-
-                    // Check if we have a valid image URL
-                    const hasValidImage = imageUrl && imageUrl.trim() !== '';
-
-                    return (
-                      <div className="flex items-center">
-                        {hasValidImage ? (
-                          <img
-                            src={imageUrl}
-                            alt={label}
-                            width={24}
-                            height={24}
-                            className="mr-2 rounded-full object-cover"
-                            onError={(e) => { 
-                              // Hide the image and show initials fallback
-                              e.currentTarget.style.display = 'none';
-                              const initialsDiv = e.currentTarget.nextElementSibling as HTMLElement;
-                              if (initialsDiv) initialsDiv.style.display = 'flex';
-                            }}
-                          />
-                        ) : null}
-                        <div 
-                          className={`w-6 h-6 mr-2 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-semibold ${hasValidImage ? 'hidden' : ''}`}
-                          style={{ fontSize: '10px' }}
-                        >
-                          {getInitials(label)}
-                        </div>
-                        <span>{label}</span>
-                      </div>
-                    );
-                  }}
-                  styles={{
-                    control: (base) => ({
-                      ...base,
-                      borderColor: '#D1D5DB',
-                      borderRadius: '0.5rem',
-                      padding: '0.25rem',
-                    }),
-                  }}
                 />
               </div>
             </div>

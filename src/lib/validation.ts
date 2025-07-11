@@ -341,3 +341,21 @@ export type UpdatePhaseInput = z.infer<typeof UpdatePhaseSchema>
 export type CreateEventInput = z.infer<typeof CreateEventSchema>
 export type UpdateEventInput = z.infer<typeof UpdateEventSchema>
 export type EventQueryInput = z.infer<typeof EventQuerySchema>
+
+export const clubSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  city: z.string().optional(),
+  country: z.string().min(1, 'Country is required'),
+  organizationId: z.string().optional(),
+  imageUrl: z.union([
+    z.string().url(), // Valid URL
+    z.string().length(0), // Empty string
+    z.null() // Null value
+  ]).optional(),
+});
+
+export const athleteSchema = z.object({
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
+  // Add other athlete fields here if needed
+});

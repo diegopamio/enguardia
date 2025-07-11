@@ -242,7 +242,11 @@ export default function CompetitionList({
                   <div className="flex justify-between">
                     <span className="font-medium">Tournament:</span>
                     <button
-                      onClick={() => competition.tournament && (window.location.href = `/events?view=${competition.tournament.id}`)}
+                      onClick={() => {
+                        if (typeof window !== 'undefined' && competition.tournament) {
+                          window.location.href = `/events?view=${competition.tournament.id}`
+                        }
+                      }}
                       className="truncate ml-2 text-blue-600 hover:text-blue-800 underline text-left"
                       title="View tournament details"
                     >
@@ -277,7 +281,11 @@ export default function CompetitionList({
               {/* Actions */}
               <div className="flex gap-2 pt-4 border-t border-gray-100">
                 <button
-                  onClick={() => window.location.href = `/competitions/${competition.id}`}
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      window.location.href = `/competitions/${competition.id}`
+                    }
+                  }}
                   className="flex-1 px-3 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
                 >
                   View Details

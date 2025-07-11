@@ -1,11 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
-import { apiFetch } from '@/lib/notifications';
-import AthleteList from './AthleteList';
+import type { Session } from 'next-auth';
+import { apiFetch, notify } from '@/lib/notifications';
+import { getCountryName } from '@/lib/countries';
 import AthleteForm from './AthleteForm';
+import { UserRole } from '@prisma/client'; // Use the prisma-generated type
+import AthleteList from './AthleteList';
 import AthleteImport from './AthleteImport';
+import ClubSelect from '../shared/ClubSelect';
 
 interface Athlete {
   id: string;
@@ -48,8 +51,11 @@ const defaultPagination = {
   hasMore: false,
 };
 
-export default function AthleteManagement() {
-  const { data: session } = useSession();
+interface AthleteManagementProps {
+  session: Session | null;
+}
+
+export default function AthleteManagement({ session }: AthleteManagementProps) {
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +69,31 @@ export default function AthleteManagement() {
   const [filterWeapon, setFilterWeapon] = useState<string>('');
   const [filterOrganization, setFilterOrganization] = useState<string>('');
   const [pagination, setPagination] = useState(defaultPagination);
+  const [clubs, setClubs] = useState<any[]>([]);
+  const [loadingClubs, setLoadingClubs] = useState(true);
+  const [filterClub, setFilterClub] = useState<string>('');
+
+  const canManageAthletes =
+    session?.user?.role === UserRole.SYSTEM_ADMIN ||
+    session?.user?.role === UserRole.ORGANIZATION_ADMIN;
+
+  const fetchClubsForFilter = async () => {
+    setLoadingClubs(true);
+    try {
+      const response = await apiFetch('/api/clubs');
+      const data = await response.json();
+      setClubs(data.clubs || []);
+    } catch (error) {
+      console.error('Failed to fetch clubs for filter:', error);
+      setClubs([]);
+    } finally {
+      setLoadingClubs(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchClubsForFilter();
+  }, []);
 
   const fetchAthletes = useCallback(async (customOffset?: number) => {
     if (!session?.user) return;
@@ -89,26 +120,34 @@ export default function AthleteManagement() {
       if (filterOrganization) {
         params.append('organizationId', filterOrganization);
       }
+      if (filterClub) {
+        params.append('clubId', filterClub);
+      }
 
-      const response = await apiFetch<AthletesResponse>(`/api/athletes?${params}`);
+      const response = await apiFetch(`/api/athletes?${params}`);
+      const data = await response.json() as AthletesResponse;
       
       if (currentOffset === 0) {
-        setAthletes(response.athletes);
+        setAthletes(data.athletes);
       } else {
-        setAthletes(prev => [...prev, ...response.athletes]);
+        setAthletes(prev => [...prev, ...data.athletes]);
       }
       
-      setPagination(response.pagination);
+      setPagination(data.pagination);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch athletes');
     } finally {
       setLoading(false);
     }
-  }, [session?.user, searchTerm, filterWeapon, filterOrganization, pagination?.limit]);
+  }, [session, searchTerm, filterWeapon, filterOrganization, filterClub]);
 
   useEffect(() => {
-    fetchAthletes(0);
-  }, [searchTerm, filterWeapon, filterOrganization, refreshKey]);
+    if (session) { // Check for session before fetching
+      fetchAthletes(0);
+    } else {
+      setLoading(false); // Stop loading if no session
+    }
+  }, [session, searchTerm, filterWeapon, filterOrganization, filterClub, refreshKey]);
 
   const handleSearch = (newSearchTerm: string) => {
     setSearchTerm(newSearchTerm);
@@ -121,6 +160,11 @@ export default function AthleteManagement() {
     setPagination(prev => ({ ...prev, offset: 0 }));
   };
 
+  const handleClubFilterChange = (clubId: string | null) => {
+    setFilterClub(clubId || '');
+    setPagination(prev => ({ ...prev, offset: 0 }));
+  };
+
   const handleLoadMore = () => {
     const newOffset = (pagination?.offset || 0) + (pagination?.limit || 50);
     setPagination(prev => ({ ...prev, offset: newOffset }));
@@ -129,13 +173,12 @@ export default function AthleteManagement() {
 
   const handleRefresh = useCallback(() => {
     setRefreshKey(prev => prev + 1);
-    setPagination(defaultPagination);
   }, []);
 
   const handleCreateSuccess = useCallback(() => {
-    handleRefresh();
     setShowForm(false);
     setSelectedAthlete(null);
+    handleRefresh();
   }, [handleRefresh]);
 
   const handleImportSuccess = useCallback(() => {
@@ -143,15 +186,9 @@ export default function AthleteManagement() {
     setShowImport(false);
   }, [handleRefresh]);
 
-  if (!session?.user) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-gray-500">Please sign in to manage athletes.</p>
-      </div>
-    );
+  if (!session) {
+    return <div className="p-4 text-center">Please sign in to view athletes.</div>;
   }
-
-  const canManageAthletes = ['ORGANIZATION_ADMIN', 'SYSTEM_ADMIN'].includes(session.user.role);
 
   return (
     <div className="space-y-6">
@@ -192,7 +229,7 @@ export default function AthleteManagement() {
       <div className="bg-white p-6 rounded-lg shadow">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Search & Filter</h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
               Search Athletes
@@ -238,6 +275,20 @@ export default function AthleteManagement() {
               <option value={session.user.organizationId || ''}>My Organization</option>
             </select>
           </div>
+
+          <div className="lg:col-span-2">
+            <label htmlFor="club" className="block text-sm font-medium text-gray-700 mb-1">
+              Club
+            </label>
+            <ClubSelect
+              clubs={clubs}
+              value={filterClub}
+              onChange={handleClubFilterChange}
+              placeholder="Select a club..."
+              isDisabled={loadingClubs}
+              isClearable={true}
+            />
+          </div>
         </div>
       </div>
 
@@ -260,12 +311,12 @@ export default function AthleteManagement() {
       {/* Create/Edit Modal */}
       {showForm && (
         <AthleteForm
-          athlete={selectedAthlete}
-          onClose={() => {
+          athlete={selectedAthlete || undefined}
+          onCancel={() => {
             setShowForm(false);
             setSelectedAthlete(null);
           }}
-          onSuccess={handleCreateSuccess}
+          onSave={handleCreateSuccess}
         />
       )}
 

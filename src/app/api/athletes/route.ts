@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { canUserManageClub } from '@/lib/api-auth';
+import { getCountryCode } from '@/lib/countries';
 
 // Validation schema for creating/updating athletes
 const athleteSchema = z.object({
@@ -27,19 +29,20 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
-    const organizationId = searchParams.get('organizationId') || session.user.organizationId;
+    const organizationId = searchParams.get('organizationId');
+    const clubId = searchParams.get('clubId');
     const weapon = searchParams.get('weapon');
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    const where: Record<string, unknown> = {
+    let where: Record<string, unknown> = {
       isActive: true,
       ...(search && {
         OR: [
-          { firstName: { contains: search, mode: 'insensitive' } },
-          { lastName: { contains: search, mode: 'insensitive' } },
-          { fieId: { contains: search, mode: 'insensitive' } },
-          { nationality: { contains: search, mode: 'insensitive' } },
+          { firstName: { contains: search } },
+          { lastName: { contains: search } },
+          { fieId: { contains: search } },
+          { nationality: { contains: search } },
         ],
       }),
     };
@@ -49,6 +52,23 @@ export async function GET(request: NextRequest) {
       where.organizations = {
         some: {
           organizationId: organizationId,
+          status: 'ACTIVE',
+        },
+      };
+    } else if (session.user.role !== 'SYSTEM_ADMIN' && session.user.organizationId) {
+      where.organizations = {
+        some: {
+          organizationId: session.user.organizationId,
+          status: 'ACTIVE',
+        },
+      };
+    }
+
+    // Filter by club if specified
+    if (clubId) {
+      where.clubs = {
+        some: {
+          clubId: clubId,
           status: 'ACTIVE',
         },
       };
@@ -148,7 +168,12 @@ export async function POST(request: NextRequest) {
       const club = await prisma.club.findFirst({
         where: {
           id: validatedData.clubId,
-          organizationId: validatedData.organizationId,
+          organizations: {
+            some: {
+              organizationId: validatedData.organizationId,
+              status: 'ACTIVE',
+            },
+          },
         },
       });
       if (!club) {
