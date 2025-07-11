@@ -1,0 +1,16 @@
+# Task ID: 6
+# Title: Develop Formula Setup Interface
+# Status: pending
+# Dependencies: 4
+# Priority: medium
+# Description: Create an interface for setting up the tournament formula, including poule rounds and direct elimination settings.
+# Details:
+1. Design and implement UI for formula setup.
+2. Create API routes for saving and retrieving formula settings.
+3. Implement logic for toggling third-place bout.
+4. Add functionality to choose bracket size and set percentage of athletes advancing.
+5. Integrate formula settings with event management.
+6. Use React Hook Form for form management and Zod for validation.
+
+# Test Strategy:
+Unit test formula calculation logic. Integration test UI with API. Verify that changes in formula settings are correctly reflected in the tournament structure.

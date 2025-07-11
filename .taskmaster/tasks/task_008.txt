@@ -1,0 +1,16 @@
+# Task ID: 8
+# Title: Develop Score Entry System for Poules
+# Status: pending
+# Dependencies: 7
+# Priority: high
+# Description: Create a user-friendly interface for entering and managing scores in poule rounds.
+# Details:
+1. Design and implement UI for score entry (grid UI per poule and per bout).
+2. Create API routes for score submission and retrieval.
+3. Implement real-time score calculation (victories, indicators, quotas).
+4. Add functionality to lock poules when complete.
+5. Implement validation to ensure all scores are entered correctly.
+6. Use React Query for efficient data fetching and caching.
+
+# Test Strategy:
+Test score entry for various scenarios. Verify real-time calculation accuracy. Test poule locking functionality.

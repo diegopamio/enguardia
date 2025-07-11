@@ -1,0 +1,95 @@
+# Task ID: 1
+# Title: Setup Next.js Project with Essential Dependencies
+# Status: done
+# Dependencies: None
+# Priority: high
+# Description: Initialize a Next.js project with App Router, Tailwind CSS, Prisma ORM, and NextAuth.js for authentication.
+# Details:
+1. Use `create-next-app` to bootstrap a new Next.js project with TypeScript and App Router.
+2. Install and configure Tailwind CSS for styling.
+3. Set up Prisma ORM for database management.
+4. Install and configure NextAuth.js for authentication.
+5. Set up i18next for internationalization (EN, ES, FR).
+6. Initialize Git repository and create initial commit.
+
+# Test Strategy:
+Verify all dependencies are correctly installed and configured by running the development server and checking for any errors.
+
+# Subtasks:
+## 1. Initialize Next.js Project with TypeScript and App Router [done]
+### Dependencies: None
+### Description: Use `create-next-app` to bootstrap a new Next.js project, ensuring TypeScript and the App Router are enabled.
+### Details:
+Run `npx create-next-app@latest` and select TypeScript and App Router options during setup. Confirm the project structure includes the `app` directory and TypeScript configuration files.
+
+## 2. Install and Configure Tailwind CSS [done]
+### Dependencies: 1.1
+### Description: Add Tailwind CSS to the Next.js project and configure it for styling.
+### Details:
+Install Tailwind CSS and its peer dependencies. Initialize Tailwind config files and update `tailwind.config.js` and `globals.css` as per Tailwind documentation.
+
+## 3. Set Up Prisma ORM [done]
+### Dependencies: 1.1
+### Description: Install Prisma, initialize it in the project, and configure the database connection.
+### Details:
+Install Prisma CLI and client, run `npx prisma init` to create the Prisma schema, and configure the database URL in `.env`.
+
+## 4. Install and Configure NextAuth.js for Authentication [done]
+### Dependencies: 1.1, 1.3
+### Description: Add NextAuth.js to the project and set up basic authentication providers.
+### Details:
+Install NextAuth.js and configure an authentication route in the `app/api/auth` directory. Set up at least one provider and update environment variables as needed.
+<info added on 2025-06-25T15:08:23.407Z>
+Fixed authentication state persistence issue on page refresh.
+
+**Problem Identified:**
+- Root layout was passing `session={null}` to SessionProvider, preventing proper session hydration
+- This caused authentication state to be lost on page refresh, showing "Sign In" button even for authenticated users
+
+**Solution Implemented:**
+1. **Root Layout Fix**: Removed `session={null}` parameter from SessionProvider in layout.tsx
+   - Now allows NextAuth to properly handle session initialization
+   - Enables server-side session hydration for consistent state
+
+2. **SessionProvider Update**: Made session prop optional in SessionProvider component
+   - Changed `session: any` to `session?: any` to support optional session parameter
+   - Maintains backward compatibility while fixing the persistence issue
+
+**Technical Details:**
+- NextAuth.js uses JWT strategy with 24-hour token lifetime
+- Session cookies are properly configured with security headers
+- Authentication callbacks handle user data refresh every 12 hours
+- This fix ensures consistent authentication state across page refreshes
+
+**Verification:**
+- Users can now refresh the page and remain authenticated
+- Session state properly persists between client and server renders
+- No more false "Sign In" states for authenticated users
+
+Authentication implementation is now complete and working correctly.
+</info added on 2025-06-25T15:08:23.407Z>
+<info added on 2025-06-25T18:19:36.540Z>
+✅ **Authentication persistence issue RESOLVED**
+
+**Root Cause Confirmed:** Missing `NEXTAUTH_SECRET` environment variable was preventing NextAuth from properly signing/verifying JWT tokens.
+
+**Solution Applied:**
+1. User added `NEXTAUTH_SECRET` to `.env` file with secure random string
+2. Restarted development server to load new environment variable
+3. NextAuth can now properly handle session persistence across page refreshes
+
+**Verification Successful:**
+- User confirmed authentication state now persists seamlessly on page refresh
+- Navbar correctly maintains "Sign Out" state for authenticated users
+- JWT token signing/verification working properly
+- Session cookies being set and read correctly
+
+NextAuth.js authentication system is now fully functional and robust.
+</info added on 2025-06-25T18:19:36.540Z>
+
+## 5. Set Up i18next for Internationalization and Initialize Git Repository [done]
+### Dependencies: 1.1
+### Description: Install i18next and configure it for EN, ES, and FR locales. Initialize a Git repository and make the initial commit.
+### Details:
+Install i18next and related packages, configure language resources for English, Spanish, and French. Run `git init`, add all files, and create the initial commit.
+

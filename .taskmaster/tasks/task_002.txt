@@ -1,0 +1,257 @@
+# Task ID: 2
+# Title: Design and Implement Database Schema
+# Status: done
+# Dependencies: 1
+# Priority: high
+# Description: Create the database schema for the application using Prisma, including models for events, athletes, poules, and direct elimination brackets.
+# Details:
+1. Design schema for Event, Athlete, Poule, DirectElimination, and User models.
+2. Implement schema using Prisma's schema language.
+3. Include fields for multilingual support (EN, ES, FR) where necessary.
+4. Set up relationships between models (e.g., Event has many Athletes).
+5. Create initial migrations.
+6. Set up both PostgreSQL (for production) and SQLite (for local/offline) configurations.
+<info added on 2025-06-24T21:45:16.568Z>
+7. Implement research findings on modern fencing tournament database design:
+   - Apply 3NF normalization principles to avoid data redundancy
+   - Create separate translation tables for multilingual support
+   - Add audit trail functionality for scoring changes and user actions
+   - Include status fields and timestamps for real-time updates
+   - Ensure FIE rule compliance with proper tie-breaker fields
+
+8. Expand schema to include additional entities:
+   - User/Authentication with role-based access (Admin, Referee, Public)
+   - Enhanced Athlete model with weapon specialization, club, nationality, and FIE ID
+   - Scoring system compatible with FIE rules, V/M ratios, and indicators
+   - Rankings with all FIE tie-breaker fields
+
+9. Implement advanced tournament management features:
+   - Late athlete additions/withdrawals handling
+   - Multiple weapon support per athlete
+   - Team competition structure
+   - Proper indexing for performance optimization
+   - Data integrity with appropriate referential actions
+</info added on 2025-06-24T21:45:16.568Z>
+
+# Test Strategy:
+Run migrations on both PostgreSQL and SQLite. Verify schema integrity using Prisma Studio.
+
+# Subtasks:
+## 1. Identify Multilingual Entities and Required Fields [done]
+### Dependencies: None
+### Description: Determine which entities (Event, Tournament, Organization, etc.) require multilingual support and specify which fields need translation (e.g., name, description).
+### Details:
+Review the application requirements and FIE rules to list all entities and fields that must support EN, ES, and FR. Document these requirements for schema design.
+
+## 2. Design Normalized Translation Table Structures [done]
+### Dependencies: 2.1
+### Description: Create normalized translation table schemas for each multilingual entity, ensuring 3NF compliance and avoiding data redundancy.
+### Details:
+For each entity, design a separate translation table (e.g., EventTranslation) with foreign keys to the main entity and language code, including translated fields. Ensure proper indexing and referential integrity.
+
+## 3. Implement Prisma Schema for Multilingual Support [done]
+### Dependencies: 2.2
+### Description: Translate the normalized translation table designs into Prisma schema models, defining relationships, constraints, and indexes.
+### Details:
+Update the prisma/schema.prisma file to include translation models, foreign keys, and relationships. Ensure compatibility with both PostgreSQL and SQLite providers.
+<info added on 2025-06-25T03:54:25.369Z>
+# Multilingual Entity and Field Identification
+
+## Entities Requiring Multilingual Support:
+1. **Organization** - name, description, shortName
+2. **Event** - name, description, rules, notes
+3. **Tournament** - name, description, rules, additionalInfo
+4. **Club** - name, description
+5. **Venue** - name, description, address fields
+6. **Round** - name, description
+7. **Match** - notes, description
+
+## Fields per Entity:
+- Organization: name, description, shortName
+- Event: name, description, rules, notes
+- Tournament: name, description, rules, additionalInfo
+- Venue: name, description, address, city, country
+- Round: name, description
+- Club: name, description
+- Match: notes, description
+
+## Languages to Support:
+- EN (English) - Default/fallback
+- ES (Spanish/Español)
+- FR (French/Français)
+
+Note: Athlete entity contains primarily proper nouns that don't require translation.
+</info added on 2025-06-25T03:54:25.369Z>
+<info added on 2025-06-25T03:55:09.146Z>
+## Translation Schema Analysis Update
+
+### Existing Translation Tables
+- **OrganizationTranslation** - name, displayName, description
+- **ClubTranslation** - name
+- **EventTranslation** - name, description
+
+### Missing Translation Tables
+- **DirectEliminationBracket** - needs translation for 'name' field
+- **AuditLog** - needs translation for 'action' field
+
+### Entities Not Requiring Translation
+- Athlete (proper nouns)
+- User (personal information)
+- Poule, PouleAssignment, PouleMatch (primarily numeric/status data)
+- DEMatch, Card (primarily data/status fields)
+- Rankings (numerical data)
+- EventRegistration (status-based)
+
+### Current Translation Schema Pattern
+- 'locale' field with values: 'en', 'es', 'fr'
+- Unique constraint on [entityId, locale]
+- Cascade delete on parent entity removal
+- Proper indexing and foreign key relationships
+
+Most translation infrastructure is already implemented. Focus should be on adding DirectEliminationBracket and AuditLog translations to complete the schema.
+</info added on 2025-06-25T03:55:09.146Z>
+<info added on 2025-06-25T03:56:21.567Z>
+## Translation Table Design for Missing Entities
+
+### DirectEliminationBracket Translation Table
+```prisma
+model DirectEliminationBracketTranslation {
+  id        String @id @default(cuid())
+  bracketId String
+  locale    String // 'en', 'es', 'fr'
+  name      String // e.g., "Table of 64", "Quarter Finals", "Semifinal", "Final"
+  
+  bracket   DirectEliminationBracket @relation(fields: [bracketId], references: [id], onDelete: Cascade)
+  
+  @@unique([bracketId, locale])
+  @@map("de_bracket_translations")
+}
+```
+
+### AuditLog Translation Table
+```prisma
+model AuditLogTranslation {
+  id        String @id @default(cuid())
+  actionKey String // key like "SCORE_UPDATE", "MATCH_START", etc.
+  locale    String // 'en', 'es', 'fr'
+  description String // user-friendly description in the specified language
+  
+  @@unique([actionKey, locale])
+  @@map("audit_log_translations")
+}
+```
+
+### Design Principles Applied
+- 3NF Normalization with no redundant data
+- Unique constraints on [entityId, locale] to prevent duplicates
+- Cascade delete for referential integrity with parent entities
+- Consistent naming patterns matching existing schema
+- Proper table mapping with snake_case convention
+
+### Required Model Updates
+The DirectEliminationBracket model needs to be updated to include the translations relation:
+
+```prisma
+model DirectEliminationBracket {
+  // existing fields...
+  
+  translations DirectEliminationBracketTranslation[]
+}
+```
+</info added on 2025-06-25T03:56:21.567Z>
+<info added on 2025-06-25T03:58:07.425Z>
+## Implementation Complete: Translation Schema Updates
+
+The Prisma schema has been successfully updated with all required translation models:
+
+1. **DirectEliminationBracketTranslation**
+   - Fields: id, bracketId, locale, name
+   - Relations: bracket (to DirectEliminationBracket)
+   - Constraints: @@unique([bracketId, locale])
+   - Mapping: @@map("de_bracket_translations")
+
+2. **AuditLogTranslation**
+   - Fields: id, actionKey, locale, description
+   - Constraints: @@unique([actionKey, locale])
+   - Mapping: @@map("audit_log_translations")
+
+3. **DirectEliminationBracket Model Updated**
+   - Added translations relation to DirectEliminationBracketTranslation
+
+Schema validation was successful with `npx prisma generate` producing no errors. The implementation maintains 3NF normalization, consistent naming conventions, proper foreign key relationships with cascade delete, and unique constraints to prevent duplicate translations. The schema remains compatible with both SQLite and PostgreSQL providers as required.
+</info added on 2025-06-25T03:58:07.425Z>
+<info added on 2025-06-25T04:03:12.271Z>
+**Migration Successfully Generated and Applied:**
+- Generated migration: `20250625035843_add_translation_tables`
+- Created tables: `de_bracket_translations`, `audit_log_translations`
+- Foreign key constraints and unique indexes properly applied
+- Migration applied successfully to SQLite database
+
+**Enhanced Seed Data with Translations:**
+Successfully added comprehensive translation data for:
+
+1. **Organization Translations** (English, Spanish, French):
+   - Madrid Fencing Club / Club de Esgrima Madrid / Club d'Escrime de Madrid
+   - San Francisco Fencing Academy / Academia de Esgrima de San Francisco / Académie d'Escrime de San Francisco
+
+2. **Club Translations** (English, Spanish, French):
+   - Chamartín Fencing Club / Club Esgrima Chamartín / Club d'Escrime Chamartín
+   - Golden Gate Fencing Club / Club de Esgrima Golden Gate / Club d'Escrime Golden Gate
+
+3. **Event Translations** (English, Spanish, French):
+   - Madrid Open 2024 / Abierto de Madrid 2024 / Open de Madrid 2024
+   - Bay Area Championship / Campeonato del Área de la Bahía / Championnat de la région de la baie
+
+4. **Audit Log Action Translations** (English, Spanish, French):
+   - SCORE_UPDATE, MATCH_START, MATCH_END, ATHLETE_WITHDRAWAL, EVENT_CREATED, USER_REGISTERED
+
+**Database Test Results:**
+- Database reset and migration complete
+- All seed data successfully inserted including translations
+- No constraint violations or errors
+- Translation relationships properly established
+
+Database multilingual foundation is complete. Ready for API integration.
+</info added on 2025-06-25T04:03:12.271Z>
+<info added on 2025-06-25T04:07:57.661Z>
+## Implementation of Translation Schema in Prisma
+
+I've successfully implemented the translation schema in our Prisma model with full support for multilingual content:
+
+### Translation Tables Added
+- **DirectEliminationBracketTranslation**
+  - Fields: id, bracketId, locale, name
+  - Relations: bracket (to DirectEliminationBracket)
+  - Constraints: @@unique([bracketId, locale])
+
+- **AuditLogTranslation**
+  - Fields: id, actionKey, locale, description
+  - Constraints: @@unique([actionKey, locale])
+
+### Helper Functions Created
+- `src/lib/i18n/translation-helpers.ts`:
+  - SupportedLocale type: 'en' | 'es' | 'fr'
+  - Locale validation and preference detection
+  - TranslatedEntityService with fallback mechanisms
+  - Audit action translation utilities
+
+### API Integration
+- Added language detection to API routes
+- Implemented locale-aware entity retrieval
+- Created demonstration page at `/multilingual-demo`
+
+All migrations have been successfully generated and applied. The system now supports English, Spanish, and French translations with proper fallback to default locale when translations are unavailable.
+</info added on 2025-06-25T04:07:57.661Z>
+
+## 4. Develop Migration Strategy and Apply Initial Migrations [done]
+### Dependencies: 2.3
+### Description: Plan and execute database migrations to create the multilingual tables and relationships in both PostgreSQL and SQLite environments.
+### Details:
+Use Prisma's migration tools to generate and apply migrations. Document the migration process and ensure repeatability for different environments.
+
+## 5. Integrate Multilingual API Endpoints [done]
+### Dependencies: 2.4
+### Description: Extend the application's API to support CRUD operations for multilingual fields, ensuring seamless integration with the translation tables.
+### Details:
+Update API controllers and services to handle creation, retrieval, updating, and deletion of translations. Ensure language selection logic is implemented for client requests.
+

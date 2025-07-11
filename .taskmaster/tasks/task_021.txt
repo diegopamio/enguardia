@@ -1,0 +1,26 @@
+# Task ID: 21
+# Title: Refactor API State Management with TanStack Query
+# Status: pending
+# Dependencies: 1, 4, 19
+# Priority: high
+# Description: Refactor all API state management in the application to use TanStack Query, replacing manual useState-based loading, error, and data handling across athlete, club, tournament, competition, and event management components.
+# Details:
+1. Install @tanstack/react-query and @tanstack/react-query-devtools as project dependencies.
+2. Initialize a single QueryClient instance and wrap the application with QueryClientProvider at the top level (e.g., in _app.tsx or App.tsx), ensuring all components have access to the query context[2][3].
+3. For each API entity (athletes, clubs, tournaments, competitions, events), create custom hooks (e.g., useAthletes, useClubs) that encapsulate useQuery and useMutation logic, referencing the existing apiFetch utility for actual network requests where appropriate.
+4. Replace all manual useState-based loading, error, and data management in relevant components with useQuery/useMutation hooks, leveraging TanStack Query's built-in state management and caching[2][3].
+5. Implement caching strategies by setting appropriate query keys and cache times for different data types to avoid redundant API calls and improve performance.
+6. Add optimistic updates for mutation hooks (e.g., create, update, delete operations), ensuring UI responsiveness and immediate feedback to users.
+7. Standardize error handling by utilizing TanStack Query's error states and providing consistent UI feedback.
+8. Enable background refetching for queries where up-to-date data is critical, using refetch intervals or onWindowFocus as needed.
+9. Maintain backward compatibility by continuing to use apiFetch directly for non-query API calls or where TanStack Query is not suitable.
+10. Update documentation and developer onboarding materials to reflect the new state management approach.
+
+# Test Strategy:
+- Verify that all affected components (AthleteManagement, AthleteForm, AthleteList, AffiliationManager, ClubForm, club pages, TournamentManagement, TournamentForm, TournamentList, CompetitionManagement, CompetitionForm, CompetitionView, EventManagement, EventForm, EventList) no longer use manual useState for loading/error/data and instead use TanStack Query hooks.
+- Confirm that data is cached and not redundantly fetched when navigating between components.
+- Test optimistic updates for all mutations, ensuring UI updates immediately and rolls back on error.
+- Simulate API errors and verify standardized error handling and user feedback.
+- Use React Query Devtools to inspect query/mutation state and cache behavior.
+- Confirm background refetching works as intended (e.g., on window focus or interval).
+- Run regression tests to ensure no loss of functionality or data integrity in API interactions.
