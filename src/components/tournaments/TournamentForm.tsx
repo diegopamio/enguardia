@@ -2,30 +2,13 @@
 
 import React, { useState, useEffect } from "react"
 import { useRoleCheck } from "@/lib/auth-client"
-
-// Tournament type based on current schema
-interface Tournament {
-  id: string
-  name: string
-  description?: string | null
-  startDate: Date
-  endDate: Date
-  venue?: string | null
-  status: string
-  isPublic: boolean
-  isActive: boolean
-  organizationId: string
-  createdAt: Date
-  updatedAt: Date
-  createdById: string
-}
+import { useCreateTournament, useUpdateTournament, type Tournament } from "@/hooks/useTournaments"
 
 interface TournamentFormProps {
   mode: "create" | "edit"
   tournament: Tournament | null
-  onSubmit: (data: any) => Promise<void>
+  onSuccess: () => void
   onCancel: () => void
-  loading: boolean
   organizationId?: string
 }
 
@@ -50,12 +33,17 @@ interface FormData {
 export default function TournamentForm({
   mode,
   tournament,
-  onSubmit,
+  onSuccess,
   onCancel,
-  loading,
   organizationId
 }: TournamentFormProps) {
   const { isSystemAdmin, session } = useRoleCheck()
+  
+  // TanStack Query hooks
+  const createTournamentMutation = useCreateTournament()
+  const updateTournamentMutation = useUpdateTournament()
+  
+  const isLoading = createTournamentMutation.isPending || updateTournamentMutation.isPending
   
   const initialFormData: FormData = {
     name: "",
@@ -187,7 +175,21 @@ export default function TournamentForm({
       translations: showTranslations ? formData.translations : undefined
     }
 
-    await onSubmit(submissionData)
+    try {
+      if (mode === "edit" && tournament) {
+        await updateTournamentMutation.mutateAsync({
+          id: tournament.id,
+          ...submissionData
+        })
+      } else {
+        await createTournamentMutation.mutateAsync(submissionData)
+      }
+      
+      onSuccess()
+    } catch (error) {
+      // Error handling is done in the mutation hooks
+      console.error("Form submission error:", error)
+    }
   }
 
   return (
@@ -198,72 +200,52 @@ export default function TournamentForm({
         </h2>
         <button
           onClick={onCancel}
-          className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
+          className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+          disabled={isLoading}
         >
-          Cancel
+          ×
         </button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Basic Information */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                Tournament Name *
-              </label>
-              <input
-                type="text"
-                id="name"
-                value={formData.name}
-                onChange={(e) => handleInputChange("name", e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.name ? "border-red-300" : "border-gray-300"
-                }`}
-                placeholder="e.g., Copa de Navidad 2024"
-              />
-              {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
-            </div>
-
-            <div>
-              <label htmlFor="venue" className="block text-sm font-medium text-gray-700 mb-1">
-                Venue
-              </label>
-              <input
-                type="text"
-                id="venue"
-                value={formData.venue}
-                onChange={(e) => handleInputChange("venue", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                placeholder="e.g., City Sports Complex"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                Description
-              </label>
-              <textarea
-                id="description"
-                rows={3}
-                value={formData.description}
-                onChange={(e) => handleInputChange("description", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Brief description of the tournament..."
-              />
-            </div>
+        <div className="grid grid-cols-1 gap-6">
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+              Tournament Name *
+            </label>
+            <input
+              type="text"
+              id="name"
+              value={formData.name}
+              onChange={(e) => handleInputChange("name", e.target.value)}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.name ? "border-red-500" : "border-gray-300"
+              }`}
+              placeholder="Enter tournament name"
+              disabled={isLoading}
+            />
+            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
           </div>
-        </div>
 
-        {/* Dates */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Tournament Dates</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
+              Description
+            </label>
+            <textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => handleInputChange("description", e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter tournament description"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-2">
                 Start Date *
               </label>
               <input
@@ -271,15 +253,16 @@ export default function TournamentForm({
                 id="startDate"
                 value={formData.startDate}
                 onChange={(e) => handleInputChange("startDate", e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.startDate ? "border-red-300" : "border-gray-300"
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.startDate ? "border-red-500" : "border-gray-300"
                 }`}
+                disabled={isLoading}
               />
-              {errors.startDate && <p className="mt-1 text-sm text-red-600">{errors.startDate}</p>}
+              {errors.startDate && <p className="text-red-500 text-sm mt-1">{errors.startDate}</p>}
             </div>
 
             <div>
-              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-2">
                 End Date *
               </label>
               <input
@@ -287,37 +270,65 @@ export default function TournamentForm({
                 id="endDate"
                 value={formData.endDate}
                 onChange={(e) => handleInputChange("endDate", e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.endDate ? "border-red-300" : "border-gray-300"
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.endDate ? "border-red-500" : "border-gray-300"
                 }`}
+                disabled={isLoading}
               />
-              {errors.endDate && <p className="mt-1 text-sm text-red-600">{errors.endDate}</p>}
+              {errors.endDate && <p className="text-red-500 text-sm mt-1">{errors.endDate}</p>}
             </div>
           </div>
-        </div>
 
-        {/* Settings */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Tournament Settings</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-                Status
+          <div>
+            <label htmlFor="venue" className="block text-sm font-medium text-gray-700 mb-2">
+              Venue
+            </label>
+            <input
+              type="text"
+              id="venue"
+              value={formData.venue}
+              onChange={(e) => handleInputChange("venue", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter venue location"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
+              Status
+            </label>
+            <select
+              id="status"
+              value={formData.status}
+              onChange={(e) => handleInputChange("status", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isLoading}
+            >
+              <option value="DRAFT">Draft</option>
+              <option value="PUBLISHED">Published</option>
+              <option value="REGISTRATION_OPEN">Registration Open</option>
+              <option value="REGISTRATION_CLOSED">Registration Closed</option>
+              <option value="IN_PROGRESS">In Progress</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="CANCELLED">Cancelled</option>
+            </select>
+          </div>
+
+          {/* Checkboxes */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="isActive"
+                checked={formData.isActive}
+                onChange={(e) => handleInputChange("isActive", e.target.checked)}
+                className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                disabled={isLoading}
+              />
+              <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
+                Active Tournament
               </label>
-              <select
-                id="status"
-                value={formData.status}
-                onChange={(e) => handleInputChange("status", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="DRAFT">Draft</option>
-                <option value="REGISTRATION_OPEN">Registration Open</option>
-                <option value="REGISTRATION_CLOSED">Registration Closed</option>
-                <option value="IN_PROGRESS">In Progress</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
             </div>
 
             <div className="flex items-center">
@@ -326,125 +337,93 @@ export default function TournamentForm({
                 id="isPublic"
                 checked={formData.isPublic}
                 onChange={(e) => handleInputChange("isPublic", e.target.checked)}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                disabled={isLoading}
               />
-              <label htmlFor="isPublic" className="ml-2 block text-sm text-gray-700">
-                Public tournament
+              <label htmlFor="isPublic" className="text-sm font-medium text-gray-700">
+                Public Tournament
               </label>
             </div>
-
-            {isSystemAdmin() && (
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="isActive"
-                  checked={formData.isActive}
-                  onChange={(e) => handleInputChange("isActive", e.target.checked)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700">
-                  Set as active tournament
-                </label>
-              </div>
-            )}
           </div>
-        </div>
 
-        {/* Multilingual Translations (Optional) */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Translations (Optional)</h3>
+          {/* Translations Toggle */}
+          <div className="border-t pt-4">
             <button
               type="button"
               onClick={() => setShowTranslations(!showTranslations)}
-              className="text-sm text-blue-600 hover:text-blue-700"
+              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+              disabled={isLoading}
             >
               {showTranslations ? "Hide" : "Show"} Translations
             </button>
           </div>
-          
+
+          {/* Translations Section */}
           {showTranslations && (
-            <div className="space-y-6">
-              {/* Spanish Translation */}
-              <div>
-                <h4 className="text-md font-medium text-gray-800 mb-3">Spanish (Español)</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Tournament Name (Spanish)
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.translations.es.name}
-                      onChange={(e) => handleTranslationChange("es", "name", e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="e.g., Copa de Navidad 2024"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Description (Spanish)
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={formData.translations.es.description}
-                      onChange={(e) => handleTranslationChange("es", "description", e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Descripción del torneo en español..."
-                    />
-                  </div>
-                </div>
+            <div className="space-y-4 bg-gray-50 p-4 rounded-md">
+              <h3 className="text-sm font-medium text-gray-700">Translations</h3>
+              
+              {/* Spanish */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-medium text-gray-600">Spanish (ES)</h4>
+                <input
+                  type="text"
+                  value={formData.translations.es.name}
+                  onChange={(e) => handleTranslationChange("es", "name", e.target.value)}
+                  placeholder="Tournament name in Spanish"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isLoading}
+                />
+                <textarea
+                  value={formData.translations.es.description}
+                  onChange={(e) => handleTranslationChange("es", "description", e.target.value)}
+                  placeholder="Description in Spanish"
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isLoading}
+                />
               </div>
 
-              {/* French Translation */}
-              <div>
-                <h4 className="text-md font-medium text-gray-800 mb-3">French (Français)</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Tournament Name (French)
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.translations.fr.name}
-                      onChange={(e) => handleTranslationChange("fr", "name", e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="e.g., Coupe de Noël 2024"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Description (French)
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={formData.translations.fr.description}
-                      onChange={(e) => handleTranslationChange("fr", "description", e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Description du tournoi en français..."
-                    />
-                  </div>
-                </div>
+              {/* French */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-medium text-gray-600">French (FR)</h4>
+                <input
+                  type="text"
+                  value={formData.translations.fr.name}
+                  onChange={(e) => handleTranslationChange("fr", "name", e.target.value)}
+                  placeholder="Tournament name in French"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isLoading}
+                />
+                <textarea
+                  value={formData.translations.fr.description}
+                  onChange={(e) => handleTranslationChange("fr", "description", e.target.value)}
+                  placeholder="Description in French"
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isLoading}
+                />
               </div>
             </div>
           )}
         </div>
 
         {/* Form Actions */}
-        <div className="flex items-center justify-end space-x-4">
+        <div className="flex justify-end space-x-3 pt-6 border-t">
           <button
             type="button"
             onClick={onCancel}
-            className="px-6 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
+            disabled={isLoading}
+            className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             type="submit"
-            disabled={loading}
-            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? "Saving..." : mode === "create" ? "Create Tournament" : "Update Tournament"}
+            {isLoading ? 'Saving...' : (mode === "create" ? "Create Tournament" : "Update Tournament")}
           </button>
         </div>
       </form>

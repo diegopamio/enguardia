@@ -1,38 +1,11 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from "react"
+import React, { useState, useCallback } from "react"
 import { useRoleCheck } from "@/lib/auth-client"
-import { notify, apiFetch, NotificationError, confirmDelete, getMessage } from "@/lib/notifications"
+import { useCompetitions, useDeleteCompetition, type Competition } from "@/hooks/useCompetitions"
+import { useTournaments } from "@/hooks/useTournaments"
 import CompetitionList from "./CompetitionList"
 import CompetitionForm from "./CompetitionForm"
-
-// Competition type based on current schema
-export interface Competition {
-  id: string
-  name: string
-  weapon: 'EPEE' | 'FOIL' | 'SABRE'
-  category: string
-  status: 'DRAFT' | 'REGISTRATION_OPEN' | 'REGISTRATION_CLOSED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
-  registrationDeadline?: string | Date | null
-  tournamentId: string
-  createdAt: string | Date
-  updatedAt: string | Date
-  tournament?: {
-    id: string
-    name: string
-    organizationId: string
-  }
-  _count?: {
-    registrations: number
-    phases: number
-  }
-}
-
-interface Tournament {
-  id: string
-  name: string
-  organizationId: string
-}
 
 type ViewMode = "list" | "create" | "edit"
 
@@ -50,10 +23,6 @@ export default function CompetitionManagement({
   // State management
   const [currentView, setCurrentView] = useState<ViewMode>("list")
   const [selectedCompetition, setSelectedCompetition] = useState<Competition | null>(null)
-  const [competitions, setCompetitions] = useState<Competition[]>([])
-  const [availableTournaments, setAvailableTournaments] = useState<Tournament[]>([])
-  const [loading, setLoading] = useState(true)
-  const [refreshKey, setRefreshKey] = useState(0)
   
   // Search and filter state
   const [searchTerm, setSearchTerm] = useState("")
@@ -63,105 +32,35 @@ export default function CompetitionManagement({
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
-  const [totalCount, setTotalCount] = useState(0)
   const itemsPerPage = 20
 
   // Role-based access control
   const canCreate = isSystemAdmin() || isOrganizationAdmin()
   const canEdit = isSystemAdmin() || isOrganizationAdmin()
   const canDelete = isSystemAdmin() || isOrganizationAdmin()
-  const canView = true // Everyone can view competitions
 
-  // Fetch available tournaments
-  const fetchTournaments = useCallback(async () => {
-    try {
-      const params = new URLSearchParams({ limit: '100', offset: '0' })
-      if (organizationId) {
-        params.append('organizationId', organizationId)
-      }
-      
-      const response = await apiFetch(`/api/tournaments?${params.toString()}`)
-      const data = await response.json()
-      
-      if (data.tournaments) {
-        setAvailableTournaments(data.tournaments.map((t: any) => ({
-          id: t.id,
-          name: t.name,
-          organizationId: t.organizationId
-        })))
-      }
-    } catch (err) {
-      console.error('Error fetching tournaments:', err)
-    }
-  }, [organizationId])
+  // TanStack Query hooks
+  const competitionFilters = {
+    limit: itemsPerPage,
+    offset: (currentPage - 1) * itemsPerPage,
+    tournamentId: tournamentFilter || undefined,
+    organizationId: organizationId || undefined,
+    weapon: weaponFilter || undefined,
+    status: statusFilter || undefined,
+    search: searchTerm.trim() || undefined,
+  }
 
-  // Fetch competitions
-  const fetchCompetitions = useCallback(async () => {
-    try {
-      setLoading(true)
-      
-      const params = new URLSearchParams({
-        limit: itemsPerPage.toString(),
-        offset: ((currentPage - 1) * itemsPerPage).toString()
-      })
-      
-      if (tournamentFilter) {
-        params.append('tournamentId', tournamentFilter)
-      }
-      
-      if (organizationId) {
-        params.append('organizationId', organizationId)
-      }
-      
-      if (weaponFilter) {
-        params.append('weapon', weaponFilter)
-      }
-      
-      if (statusFilter) {
-        params.append('status', statusFilter)
-      }
-      
-      if (searchTerm.trim()) {
-        params.append('search', searchTerm.trim())
-      }
-      
-      const response = await apiFetch(`/api/competitions?${params.toString()}`)
-      const data = await response.json()
-      
-      if (data.competitions) {
-        setCompetitions(data.competitions)
-        setTotalCount(data.total || data.competitions.length)
-      } else {
-        setCompetitions([])
-        setTotalCount(0)
-      }
-    } catch (err) {
-      console.error('Error fetching competitions:', err)
-      if (err instanceof NotificationError) {
-        notify.error(err.message)
-      } else {
-        notify.error('Failed to load competitions')
-      }
-      setCompetitions([])
-      setTotalCount(0)
-    } finally {
-      setLoading(false)
-    }
-  }, [currentPage, tournamentFilter, organizationId, weaponFilter, statusFilter, searchTerm, refreshKey])
+  const { data: competitionsData, isLoading: competitionsLoading, error: competitionsError, refetch } = useCompetitions(competitionFilters)
+  const { data: tournamentsData } = useTournaments(organizationId ? { organizationId } : {})
+  const deleteCompetitionMutation = useDeleteCompetition()
 
-  // Load data on component mount and dependencies change
-  useEffect(() => {
-    fetchTournaments()
-  }, [fetchTournaments])
-
-  useEffect(() => {
-    fetchCompetitions()
-  }, [fetchCompetitions])
+  const competitions = competitionsData?.competitions || []
+  const totalCount = competitionsData?.total || 0
+  const availableTournaments = tournamentsData?.tournaments || []
 
   // Handle competition creation
   const handleCompetitionCreate = useCallback(() => {
     if (!canCreate) {
-      notify.error('You do not have permission to create competitions')
       return
     }
     setSelectedCompetition(null)
@@ -171,7 +70,6 @@ export default function CompetitionManagement({
   // Handle competition editing
   const handleCompetitionEdit = useCallback((competition: Competition) => {
     if (!canEdit) {
-      notify.error('You do not have permission to edit competitions')
       return
     }
     setSelectedCompetition(competition)
@@ -181,44 +79,26 @@ export default function CompetitionManagement({
   // Handle competition deletion
   const handleCompetitionDelete = useCallback(async (competitionId: string) => {
     if (!canDelete) {
-      notify.error('You do not have permission to delete competitions')
       return
     }
 
-    if (!confirmDelete()) {
+    if (!window.confirm('Are you sure you want to delete this competition? This action cannot be undone.')) {
       return
     }
-
-    const loadingToast = notify.loading('Deleting competition...')
 
     try {
-      await apiFetch(`/api/competitions/${competitionId}`, {
-        method: "DELETE"
-      })
-
-      notify.dismiss(loadingToast as string)
-      notify.success('Competition deleted successfully')
-      
-      // Refresh the competition list
-      setRefreshKey(prev => prev + 1)
-      
+      await deleteCompetitionMutation.mutateAsync(competitionId)
     } catch (error) {
-      notify.dismiss(loadingToast as string)
+      // Error handling is done in the mutation hook
       console.error("Error deleting competition:", error)
-      
-      if (error instanceof NotificationError) {
-        notify.error(error.message)
-      } else {
-        notify.error('Failed to delete competition')
-      }
     }
-  }, [canDelete])
+  }, [canDelete, deleteCompetitionMutation])
 
-  // Handle form submission
+  // Handle form success
   const handleFormSuccess = useCallback(() => {
     setCurrentView("list")
     setSelectedCompetition(null)
-    setRefreshKey(prev => prev + 1)
+    // TanStack Query will automatically invalidate and refetch
   }, [])
 
   // Handle form cancellation
@@ -227,72 +107,102 @@ export default function CompetitionManagement({
     setSelectedCompetition(null)
   }, [])
 
-  // Handle page change
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page)
+  // Filter change handlers
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchTerm(value)
+    setCurrentPage(1) // Reset to first page when searching
   }, [])
 
-  if (!canView) {
+  const handleWeaponFilterChange = useCallback((value: string) => {
+    setWeaponFilter(value)
+    setCurrentPage(1)
+  }, [])
+
+  const handleStatusFilterChange = useCallback((value: string) => {
+    setStatusFilter(value)
+    setCurrentPage(1)
+  }, [])
+
+  const handleTournamentFilterChange = useCallback((value: string) => {
+    setTournamentFilter(value)
+    setCurrentPage(1)
+  }, [])
+
+  // Handle error state
+  if (competitionsError) {
     return (
-      <div className="text-center p-8">
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
-        <p className="text-gray-600">You do not have permission to view competitions.</p>
+      <div className="text-center py-8">
+        <div className="text-red-600 mb-4">
+          {competitionsError instanceof Error ? competitionsError.message : 'Failed to fetch competitions'}
+        </div>
+        <button
+          onClick={() => refetch()}
+          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+        >
+          Try Again
+        </button>
       </div>
     )
   }
 
   // Render current view
-  if (currentView === "create" || currentView === "edit") {
-    return (
-      <CompetitionForm
-        competition={selectedCompetition}
-        onSuccess={handleFormSuccess}
-        onCancel={handleFormCancel}
-        availableTournaments={availableTournaments}
-      />
-    )
+  const renderCurrentView = () => {
+    switch (currentView) {
+      case "create":
+        return (
+          <CompetitionForm
+            mode="create"
+            competition={null}
+            onSuccess={handleFormSuccess}
+            onCancel={handleFormCancel}
+            tournaments={availableTournaments}
+            defaultTournamentId={tournamentId}
+          />
+        )
+      
+      case "edit":
+        return (
+          <CompetitionForm
+            mode="edit"
+            competition={selectedCompetition}
+            onSuccess={handleFormSuccess}
+            onCancel={handleFormCancel}
+            tournaments={availableTournaments}
+          />
+        )
+      
+      default:
+        return (
+          <CompetitionList
+            competitions={competitions}
+            tournaments={availableTournaments}
+            loading={competitionsLoading}
+            searchTerm={searchTerm}
+            weaponFilter={weaponFilter}
+            statusFilter={statusFilter}
+            tournamentFilter={tournamentFilter}
+            currentPage={currentPage}
+            totalCount={totalCount}
+            itemsPerPage={itemsPerPage}
+            onSearchChange={handleSearchChange}
+            onWeaponFilterChange={handleWeaponFilterChange}
+            onStatusFilterChange={handleStatusFilterChange}
+            onTournamentFilterChange={handleTournamentFilterChange}
+            onPageChange={setCurrentPage}
+            onEdit={canEdit ? handleCompetitionEdit : undefined}
+            onDelete={canDelete ? handleCompetitionDelete : undefined}
+            onCreate={canCreate ? handleCompetitionCreate : undefined}
+            deletingId={deleteCompetitionMutation.variables}
+          />
+        )
+    }
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            {tournamentId ? 'Tournament Competitions' : 'Competition Management'}
-          </h1>
-          <p className="mt-2 text-gray-600">
-            Manage fencing competitions and their participants
-          </p>
-        </div>
-        {canCreate && (
-          <button
-            onClick={handleCompetitionCreate}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-          >
-            Create Competition
-          </button>
-        )}
+    <div className="container mx-auto p-6">
+      <div className="bg-white rounded-lg shadow-sm">
+        {renderCurrentView()}
       </div>
-      
-      <CompetitionList
-        competitions={competitions}
-        onEdit={handleCompetitionEdit}
-        onDelete={handleCompetitionDelete}
-        loading={loading}
-        totalCount={totalCount}
-        currentPage={currentPage}
-        itemsPerPage={itemsPerPage}
-        onPageChange={handlePageChange}
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        weaponFilter={weaponFilter}
-        onWeaponFilterChange={setWeaponFilter}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        tournamentFilter={tournamentFilter}
-        onTournamentFilterChange={setTournamentFilter}
-        availableTournaments={availableTournaments}
-      />
     </div>
   )
 } 
