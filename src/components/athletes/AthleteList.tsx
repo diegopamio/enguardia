@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
-import { getCountryName } from '@/lib/countries';
+import React, { useState } from 'react';
+import { getCountryName, getCountryFlag } from '@/lib/countries';
+import { getInitials } from '@/lib/utils';
 
 interface Athlete {
   id: string;
@@ -18,7 +19,7 @@ interface Athlete {
     status: string;
   }>;
   clubs?: Array<{
-    club: { id: string; name: string; city?: string; country?: string };
+    club: { id: string; name: string; city?: string; country?: string; imageUrl?: string };
     membershipType: string;
     status: string;
     isPrimary: boolean;
@@ -53,6 +54,36 @@ const weaponNames = {
   FOIL: 'Foil',
   SABRE: 'Sabre',
 };
+
+interface ClubLogoProps {
+  club: {
+    id: string;
+    name: string;
+    imageUrl?: string;
+  };
+}
+
+function ClubLogo({ club }: ClubLogoProps) {
+  const [imageError, setImageError] = useState(false);
+
+  if (club.imageUrl && !imageError) {
+    return (
+      <img
+        src={club.imageUrl}
+        alt={`${club.name} logo`}
+        className="w-4 h-4 rounded object-cover"
+        onError={() => setImageError(true)}
+      />
+    );
+  }
+
+  // Show initials in a small blue circle
+  return (
+    <div className="w-4 h-4 bg-blue-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
+      {getInitials(club.name)}
+    </div>
+  );
+}
 
 export default function AthleteList({ 
   athletes, 
@@ -104,7 +135,10 @@ export default function AthleteList({
                 </h3>
                 <div className="text-sm text-gray-600 space-y-1">
                   {athlete.nationality && (
-                    <div>🌍 {getCountryName(athlete.nationality)}</div>
+                    <div className="flex items-center gap-1">
+                      <span>{getCountryFlag(athlete.nationality)}</span>
+                      <span>{getCountryName(athlete.nationality)}</span>
+                    </div>
                   )}
                   {athlete.fieId && (
                     <div>🆔 FIE: {athlete.fieId}</div>
@@ -163,22 +197,25 @@ export default function AthleteList({
                 <div className="text-sm font-medium text-gray-700 mb-2">Training Clubs</div>
                 <div className="space-y-1">
                   {athlete.clubs.map((clubAffiliation, idx) => (
-                    <div key={idx} className="text-sm">
-                      <span className="font-medium">🏟️ {clubAffiliation.club.name}</span>
-                      {(clubAffiliation.club.city || clubAffiliation.club.country) && (
-                        <span className="text-gray-500 ml-1">
-                          ({[
-                            clubAffiliation.club.city, 
-                            clubAffiliation.club.country ? getCountryName(clubAffiliation.club.country) : null
-                          ].filter(Boolean).join(', ')})
-                        </span>
-                      )}
-                      {clubAffiliation.isPrimary && (
-                        <span className="text-blue-600 ml-2 text-xs">PRIMARY</span>
-                      )}
-                      {clubAffiliation.status !== 'ACTIVE' && (
-                        <span className="text-red-500 ml-1">- {clubAffiliation.status.toLowerCase()}</span>
-                      )}
+                    <div key={idx} className="text-sm flex items-center gap-2">
+                      <ClubLogo club={clubAffiliation.club} />
+                      <div className="flex-1">
+                        <span className="font-medium">{clubAffiliation.club.name}</span>
+                        {(clubAffiliation.club.city || clubAffiliation.club.country) && (
+                          <span className="text-gray-500 ml-1">
+                            ({[
+                              clubAffiliation.club.city, 
+                              clubAffiliation.club.country ? getCountryName(clubAffiliation.club.country) : null
+                            ].filter(Boolean).join(', ')})
+                          </span>
+                        )}
+                        {clubAffiliation.isPrimary && (
+                          <span className="text-blue-600 ml-2 text-xs">PRIMARY</span>
+                        )}
+                        {clubAffiliation.status !== 'ACTIVE' && (
+                          <span className="text-red-500 ml-1">- {clubAffiliation.status.toLowerCase()}</span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

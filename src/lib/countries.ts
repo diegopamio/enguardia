@@ -256,6 +256,15 @@ export function getCountryName(code: string): string {
   return country ? country.name : code;
 }
 
+export function getCountryFlag(code: string): string {
+  if (!code || code.length !== 2) return '🌍';
+  
+  // Convert country code to flag emoji using regional indicator symbols
+  return String.fromCodePoint(
+    ...code.toUpperCase().split('').map(char => 0x1F1E6 + char.charCodeAt(0) - 65)
+  );
+}
+
 export function isValidCountryCode(code: string): boolean {
   return COUNTRIES.some(c => c.code === code);
 } 
