@@ -226,12 +226,10 @@ export default function AthleteManagement({ session }: AthleteManagementProps) {
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Search & Filter</h3>
-        
+      <div className="bg-white rounded-lg shadow-sm border p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
               Search Athletes
             </label>
             <input
@@ -240,19 +238,19 @@ export default function AthleteManagement({ session }: AthleteManagementProps) {
               value={searchTerm}
               onChange={(e) => handleSearch(e.target.value)}
               placeholder="Name, FIE ID, or nationality..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 h-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <div>
-            <label htmlFor="weapon" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="weapon" className="block text-sm font-medium text-gray-700 mb-2">
               Weapon
             </label>
             <select
               id="weapon"
               value={filterWeapon}
               onChange={(e) => handleFilterChange(e.target.value, filterOrganization)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 h-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Weapons</option>
               <option value="EPEE">Épée</option>
@@ -262,22 +260,22 @@ export default function AthleteManagement({ session }: AthleteManagementProps) {
           </div>
 
           <div>
-            <label htmlFor="organization" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="organization" className="block text-sm font-medium text-gray-700 mb-2">
               Organization
             </label>
             <select
               id="organization"
               value={filterOrganization}
               onChange={(e) => handleFilterChange(filterWeapon, e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 h-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Organizations</option>
               <option value={session.user.organizationId || ''}>My Organization</option>
             </select>
           </div>
 
-          <div className="lg:col-span-2">
-            <label htmlFor="club" className="block text-sm font-medium text-gray-700 mb-1">
+          <div>
+            <label htmlFor="club" className="block text-sm font-medium text-gray-700 mb-2">
               Club
             </label>
             <ClubSelect
@@ -289,6 +287,21 @@ export default function AthleteManagement({ session }: AthleteManagementProps) {
               isClearable={true}
             />
           </div>
+        </div>
+        
+        <div className="mt-4">
+          <button
+            onClick={() => {
+              setSearchTerm('');
+              setFilterWeapon('');
+              setFilterOrganization('');
+              setFilterClub('');
+              setPagination(prev => ({ ...prev, offset: 0 }));
+            }}
+            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors text-sm"
+          >
+            Clear All Filters
+          </button>
         </div>
       </div>
 
