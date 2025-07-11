@@ -16,6 +16,12 @@ interface Athlete {
     membershipType: string;
     status: string;
   }>;
+  clubs?: Array<{
+    club: { id: string; name: string; city?: string; country?: string };
+    membershipType: string;
+    status: string;
+    isPrimary: boolean;
+  }>;
   globalRankings: Array<{
     weapon: string;
     rank: number;
@@ -132,6 +138,31 @@ export default function AthleteList({
               </div>
             </div>
 
+            {/* Training Clubs */}
+            {athlete.clubs && athlete.clubs.length > 0 && (
+              <div className="mb-4">
+                <div className="text-sm font-medium text-gray-700 mb-2">Training Clubs</div>
+                <div className="space-y-1">
+                  {athlete.clubs.map((clubAffiliation, idx) => (
+                    <div key={idx} className="text-sm">
+                      <span className="font-medium">🏟️ {clubAffiliation.club.name}</span>
+                      {(clubAffiliation.club.city || clubAffiliation.club.country) && (
+                        <span className="text-gray-500 ml-1">
+                          ({[clubAffiliation.club.city, clubAffiliation.club.country].filter(Boolean).join(', ')})
+                        </span>
+                      )}
+                      {clubAffiliation.isPrimary && (
+                        <span className="text-blue-600 ml-2 text-xs">PRIMARY</span>
+                      )}
+                      {clubAffiliation.status !== 'ACTIVE' && (
+                        <span className="text-red-500 ml-1">- {clubAffiliation.status.toLowerCase()}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Organizations */}
             <div className="mb-4">
               <div className="text-sm font-medium text-gray-700 mb-2">Organizations</div>
@@ -139,7 +170,7 @@ export default function AthleteList({
                 {athlete.organizations.length > 0 ? (
                   athlete.organizations.map((org, idx) => (
                     <div key={idx} className="text-sm">
-                      <span className="font-medium">{org.organization.name}</span>
+                      <span className="font-medium">🏛️ {org.organization.name}</span>
                       <span className="text-gray-500 ml-2">
                         ({org.membershipType.toLowerCase()})
                       </span>

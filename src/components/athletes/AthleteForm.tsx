@@ -4,6 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { apiFetch, notify } from '@/lib/notifications';
 
+interface Club {
+  id: string;
+  name: string;
+  city?: string;
+  country?: string;
+}
+
 interface Athlete {
   id: string;
   firstName: string;
@@ -18,6 +25,12 @@ interface Athlete {
     membershipType: string;
     status: string;
   }>;
+  clubs?: Array<{
+    club: { id: string; name: string; city?: string };
+    membershipType: string;
+    status: string;
+    isPrimary: boolean;
+  }>;
 }
 
 interface AthleteFormProps {
@@ -29,6 +42,8 @@ interface AthleteFormProps {
 export default function AthleteForm({ athlete, onClose, onSuccess }: AthleteFormProps) {
   const { data: session } = useSession();
   const [loading, setLoading] = useState(false);
+  const [clubs, setClubs] = useState<Club[]>([]);
+  const [clubsLoading, setClubsLoading] = useState(true);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -38,6 +53,7 @@ export default function AthleteForm({ athlete, onClose, onSuccess }: AthleteForm
     isActive: true,
     weapons: [] as ('EPEE' | 'FOIL' | 'SABRE')[],
     organizationId: session?.user?.organizationId || '',
+    clubId: '',
   });
 
   useEffect(() => {
@@ -51,9 +67,34 @@ export default function AthleteForm({ athlete, onClose, onSuccess }: AthleteForm
         isActive: athlete.isActive,
         weapons: athlete.weapons.map(w => w.weapon),
         organizationId: athlete.organizations.length > 0 ? athlete.organizations[0].organization.id : session?.user?.organizationId || '',
+        clubId: athlete.clubs && athlete.clubs.length > 0 ? athlete.clubs[0].club.id : '',
       });
     }
   }, [athlete, session?.user?.organizationId]);
+
+  useEffect(() => {
+    if (session?.user?.organizationId) {
+      fetchClubs();
+    }
+  }, [session?.user?.organizationId]);
+
+  const fetchClubs = async () => {
+    try {
+      setClubsLoading(true);
+      const params = new URLSearchParams();
+      if (session?.user?.organizationId) {
+        params.append('organizationId', session.user.organizationId);
+      }
+      
+      const response = await apiFetch(`/api/clubs?${params}`);
+      setClubs(response.clubs || []);
+    } catch (error) {
+      console.error('Failed to fetch clubs:', error);
+      setClubs([]);
+    } finally {
+      setClubsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +106,7 @@ export default function AthleteForm({ athlete, onClose, onSuccess }: AthleteForm
         dateOfBirth: formData.dateOfBirth || undefined,
         nationality: formData.nationality || undefined,
         fieId: formData.fieId || undefined,
+        clubId: formData.clubId || undefined,
       };
 
       if (athlete) {
@@ -186,6 +228,37 @@ export default function AthleteForm({ athlete, onClose, onSuccess }: AthleteForm
                 onChange={(e) => setFormData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+            </div>
+
+            {/* Club Selection */}
+            <div>
+              <label htmlFor="clubId" className="block text-sm font-medium text-gray-700 mb-1">
+                Training Club
+              </label>
+              {clubsLoading ? (
+                <div className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-500">
+                  Loading clubs...
+                </div>
+              ) : (
+                <select
+                  id="clubId"
+                  value={formData.clubId}
+                  onChange={(e) => setFormData(prev => ({ ...prev, clubId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select a club (optional)</option>
+                  {clubs.map((club) => (
+                    <option key={club.id} value={club.id}>
+                      {club.name} {club.city && `(${club.city})`}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {clubs.length === 0 && !clubsLoading && (
+                <p className="text-sm text-gray-500 mt-1">
+                  No clubs available. <a href="/clubs" className="text-blue-600 hover:underline">Create one first</a>.
+                </p>
+              )}
             </div>
 
             {/* Weapons */}

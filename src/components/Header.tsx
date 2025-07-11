@@ -31,6 +31,9 @@ export default function Header() {
                 <Link href="/athletes" className="hover:text-blue-200 transition-colors">
                   Athletes
                 </Link>
+                <Link href="/clubs" className="hover:text-blue-200 transition-colors">
+                  Clubs
+                </Link>
               </nav>
             )}
           </div>
@@ -75,6 +78,9 @@ export default function Header() {
               </Link>
               <Link href="/athletes" className="hover:text-blue-200 transition-colors">
                 Athletes
+              </Link>
+              <Link href="/clubs" className="hover:text-blue-200 transition-colors">
+                Clubs
               </Link>
             </div>
           </nav>
