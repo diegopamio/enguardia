@@ -86,7 +86,7 @@ export function useCompetitionRegistrations(competitionId: string, filters: Regi
           hasMore: boolean
         }
       }>(`/api/competitions/${competitionId}/registrations?${params}`)
-      return response
+      return response.json()
     },
     enabled: !!competitionId,
     staleTime: 2 * 60 * 1000, // 2 minutes
@@ -100,7 +100,7 @@ export function useCompetitionRegistration(competitionId: string, athleteId: str
     queryKey: competitionRegistrationKeys.individual(competitionId, athleteId),
     queryFn: async () => {
       const response = await apiFetch<CompetitionRegistration>(`/api/competitions/${competitionId}/registrations/${athleteId}`)
-      return response
+      return response.json()
     },
     enabled: !!competitionId && !!athleteId,
     staleTime: 1 * 60 * 1000, // 1 minute
@@ -120,12 +120,12 @@ export function useRegisterAthlete() {
       isPresent?: boolean
       status?: 'REGISTERED' | 'CHECKED_IN' | 'WITHDRAWN' | 'DISQUALIFIED'
     }) => {
-      const response = await apiFetch<CompetitionRegistration>(`/api/competitions/${competitionId}/registrations`, {
+      const response = await apiFetch(`/api/competitions/${competitionId}/registrations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ athleteId, seedNumber, isPresent, status }),
       })
-      return response
+      return response.json()
     },
     onSuccess: (data, variables) => {
       notify.success('Athlete registered successfully')
@@ -149,16 +149,12 @@ export function useBulkRegisterAthletes() {
 
   return useMutation({
     mutationFn: async ({ competitionId, ...data }: { competitionId: string } & BulkRegistrationData) => {
-      const response = await apiFetch<{
-        message: string
-        registered: number
-        skipped: number
-      }>(`/api/competitions/${competitionId}/registrations`, {
+      const response = await apiFetch(`/api/competitions/${competitionId}/registrations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       })
-      return response
+      return response.json()
     },
     onSuccess: (data, variables) => {
       notify.success(data.message)
@@ -185,64 +181,23 @@ export function useUpdateRegistration() {
       competitionId: string
       athleteId: string
     } & UpdateRegistrationData) => {
-      const response = await apiFetch<CompetitionRegistration>(`/api/competitions/${competitionId}/registrations/${athleteId}`, {
+      const response = await apiFetch(`/api/competitions/${competitionId}/registrations/${athleteId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       })
-      return response
-    },
-    onMutate: async ({ competitionId, athleteId, ...updates }) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({
-        queryKey: competitionRegistrationKeys.byCompetition(competitionId)
-      })
-
-      // Snapshot previous value
-      const previousRegistrations = queryClient.getQueryData(
-        competitionRegistrationKeys.filtered(competitionId, {})
-      )
-
-      // Optimistically update cache
-      queryClient.setQueryData(
-        competitionRegistrationKeys.filtered(competitionId, {}),
-        (old: any) => {
-          if (!old?.registrations) return old
-          return {
-            ...old,
-            registrations: old.registrations.map((reg: CompetitionRegistration) =>
-              reg.athleteId === athleteId ? { ...reg, ...updates } : reg
-            )
-          }
-        }
-      )
-
-      return { previousRegistrations, competitionId, athleteId }
+      return response.json()
     },
     onSuccess: (data, variables) => {
       notify.success('Registration updated successfully')
-      // Invalidate individual registration query
-      queryClient.invalidateQueries({
-        queryKey: competitionRegistrationKeys.individual(variables.competitionId, variables.athleteId)
-      })
-    },
-    onError: (error, variables, context) => {
-      console.error('Failed to update registration:', error)
-      notify.error(error instanceof Error ? error.message : 'Failed to update registration')
-      
-      // Rollback optimistic update
-      if (context?.previousRegistrations) {
-        queryClient.setQueryData(
-          competitionRegistrationKeys.filtered(context.competitionId, {}),
-          context.previousRegistrations
-        )
-      }
-    },
-    onSettled: (data, error, variables) => {
-      // Always refetch after error or success
+      // Invalidate all queries for this competition to refetch fresh data
       queryClient.invalidateQueries({
         queryKey: competitionRegistrationKeys.byCompetition(variables.competitionId)
       })
+    },
+    onError: (error) => {
+      console.error('Failed to update registration:', error)
+      notify.error(error instanceof Error ? error.message : 'Failed to update registration')
     },
   })
 }
@@ -256,10 +211,10 @@ export function useUnregisterAthlete() {
       competitionId: string
       athleteId: string
     }) => {
-      const response = await apiFetch<{ message: string }>(`/api/competitions/${competitionId}/registrations/${athleteId}`, {
+      const response = await apiFetch(`/api/competitions/${competitionId}/registrations/${athleteId}`, {
         method: 'DELETE',
       })
-      return response
+      return response.json()
     },
     onMutate: async ({ competitionId, athleteId }) => {
       // Cancel outgoing refetches
@@ -336,7 +291,7 @@ export function useBulkUpdatePresence() {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ isPresent }),
-        })
+        }).then(response => response.json())
       )
       
       const results = await Promise.allSettled(promises)

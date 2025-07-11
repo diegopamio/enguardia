@@ -15,7 +15,7 @@ export default function Home() {
 
         {/* Features Grid */}
         <div className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          <a href="/events" className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200 block">
+          <a href="/tournaments" className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200 block">
             <div className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
