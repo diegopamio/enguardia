@@ -3,12 +3,22 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { apiFetch, notify } from '@/lib/notifications';
+import { getCountryName } from '@/lib/countries';
+import ReactFlagsSelect from 'react-flags-select';
+import Select from 'react-select';
 
 interface Club {
   id: string;
   name: string;
   city?: string;
-  country?: string;
+  country: string;
+  imageUrl?: string;
+  organizations: Array<{
+    organization: {
+      id: string;
+      name: string;
+    };
+  }>;
 }
 
 interface Athlete {
@@ -34,95 +44,97 @@ interface Athlete {
 }
 
 interface AthleteFormProps {
-  athlete?: Athlete | null;
-  onClose: () => void;
-  onSuccess: () => void;
+  athlete?: Athlete;
+  onSave: (athlete: Athlete) => void;
+  onCancel: () => void;
 }
 
-export default function AthleteForm({ athlete, onClose, onSuccess }: AthleteFormProps) {
+export default function AthleteForm({ athlete, onSave, onCancel }: AthleteFormProps) {
   const { data: session } = useSession();
   const [loading, setLoading] = useState(false);
   const [clubs, setClubs] = useState<Club[]>([]);
-  const [clubsLoading, setClubsLoading] = useState(true);
+  const [loadingClubs, setLoadingClubs] = useState(true);
+  
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    nationality: '',
-    fieId: '',
-    dateOfBirth: '',
-    isActive: true,
-    weapons: [] as ('EPEE' | 'FOIL' | 'SABRE')[],
+    firstName: athlete?.firstName || '',
+    lastName: athlete?.lastName || '',
+    nationality: athlete?.nationality || '',
+    fieId: athlete?.fieId || '',
+    dateOfBirth: athlete?.dateOfBirth || '',
+    isActive: athlete?.isActive ?? true,
+    weapons: athlete?.weapons?.map(w => w.weapon) || [],
     organizationId: session?.user?.organizationId || '',
-    clubId: '',
+    clubId: athlete?.clubs?.find(c => c.isPrimary)?.club.id || '', // Primary club
   });
 
-  useEffect(() => {
-    if (athlete) {
-      setFormData({
-        firstName: athlete.firstName,
-        lastName: athlete.lastName,
-        nationality: athlete.nationality || '',
-        fieId: athlete.fieId || '',
-        dateOfBirth: athlete.dateOfBirth ? athlete.dateOfBirth.split('T')[0] : '',
-        isActive: athlete.isActive,
-        weapons: athlete.weapons.map(w => w.weapon),
-        organizationId: athlete.organizations.length > 0 ? athlete.organizations[0].organization.id : session?.user?.organizationId || '',
-        clubId: athlete.clubs && athlete.clubs.length > 0 ? athlete.clubs[0].club.id : '',
-      });
-    }
-  }, [athlete, session?.user?.organizationId]);
-
-  useEffect(() => {
-    if (session?.user?.organizationId) {
-      fetchClubs();
-    }
-  }, [session?.user?.organizationId]);
-
+  // Fetch available clubs
   const fetchClubs = async () => {
     try {
-      setClubsLoading(true);
-      const params = new URLSearchParams();
-      if (session?.user?.organizationId) {
-        params.append('organizationId', session.user.organizationId);
-      }
-      
-      const response = await apiFetch(`/api/clubs?${params}`);
-      setClubs(response.clubs || []);
+      setLoadingClubs(true);
+      const response = await apiFetch('/api/clubs');
+      const data = await response.json();
+      setClubs(data?.clubs || []);
     } catch (error) {
       console.error('Failed to fetch clubs:', error);
       setClubs([]);
     } finally {
-      setClubsLoading(false);
+      setLoadingClubs(false);
     }
   };
+
+  useEffect(() => {
+    if (session) {
+      fetchClubs();
+    }
+  }, [session]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const payload = {
-        ...formData,
-        dateOfBirth: formData.dateOfBirth || undefined,
-        nationality: formData.nationality || undefined,
-        fieId: formData.fieId || undefined,
-        clubId: formData.clubId || undefined,
-      };
-
-      if (athlete) {
-        // Update athlete (not yet implemented in API)
-        notify.error('Athlete updates not yet implemented');
+      if (!formData.firstName.trim() || !formData.lastName.trim()) {
+        notify.error('First name and last name are required');
         return;
-      } else {
-        await apiFetch('/api/athletes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        notify.success('Athlete created successfully');
       }
 
-      onSuccess();
+      const athleteData = {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        nationality: formData.nationality || null,
+        fieId: formData.fieId || null,
+        dateOfBirth: formData.dateOfBirth || null,
+        isActive: formData.isActive,
+        weapons: formData.weapons,
+        organizationId: formData.organizationId || null,
+        clubId: formData.clubId || null,
+      };
+
+      let response;
+      if (athlete?.id) {
+        // Update existing athlete
+        response = await apiFetch(`/api/athletes/${athlete.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(athleteData),
+        });
+      } else {
+        // Create new athlete
+        response = await apiFetch('/api/athletes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(athleteData),
+        });
+      }
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to save athlete');
+      }
+
+      notify.success(athlete?.id ? 'Athlete updated successfully' : 'Athlete created successfully');
+      onSave(result.athlete);
     } catch (error) {
       notify.error(error instanceof Error ? error.message : 'Failed to save athlete');
     } finally {
@@ -130,7 +142,7 @@ export default function AthleteForm({ athlete, onClose, onSuccess }: AthleteForm
     }
   };
 
-  const handleWeaponToggle = (weapon: 'EPEE' | 'FOIL' | 'SABRE') => {
+  const handleWeaponChange = (weapon: 'EPEE' | 'FOIL' | 'SABRE') => {
     setFormData(prev => ({
       ...prev,
       weapons: prev.weapons.includes(weapon)
@@ -139,16 +151,33 @@ export default function AthleteForm({ athlete, onClose, onSuccess }: AthleteForm
     }));
   };
 
+  const getClubDisplayName = (club: Club) => {
+    const location = club.city ? `${club.city}, ${getCountryName(club.country)}` : getCountryName(club.country);
+    return `${club.name} (${location})`;
+  };
+
+  // Filter clubs based on organization (show all clubs for system admins, organization clubs for org admins)
+  const filteredClubs = clubs.filter(club => {
+    if (session?.user?.role === 'SYSTEM_ADMIN') {
+      return true; // System admins can see all clubs
+    }
+    if (session?.user?.role === 'ORGANIZATION_ADMIN' && session.user.organizationId) {
+      // Organization admins can see clubs affiliated with their organization
+      return club.organizations.some(org => org.organization.id === session.user.organizationId);
+    }
+    return true; // Default to showing all clubs
+  });
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-900">
-              {athlete ? 'Edit Athlete' : 'Add New Athlete'}
+              {athlete?.id ? 'Edit Athlete' : 'Add New Athlete'}
             </h2>
             <button
-              onClick={onClose}
+              onClick={onCancel}
               className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
             >
               ×
@@ -159,111 +188,161 @@ export default function AthleteForm({ athlete, onClose, onSuccess }: AthleteForm
             {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   First Name *
                 </label>
                 <input
                   type="text"
-                  id="firstName"
-                  value={formData.firstName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="First name"
                 />
               </div>
 
               <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Last Name *
                 </label>
                 <input
                   type="text"
-                  id="lastName"
-                  value={formData.lastName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Last name"
                 />
               </div>
             </div>
 
+            {/* Additional Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="nationality" className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Nationality
                 </label>
-                <input
-                  type="text"
-                  id="nationality"
-                  value={formData.nationality}
-                  onChange={(e) => setFormData(prev => ({ ...prev, nationality: e.target.value }))}
-                  placeholder="e.g. USA, FRA, GBR"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <ReactFlagsSelect
+                  selected={formData.nationality}
+                  onSelect={(code) => setFormData({ ...formData, nationality: code })}
+                  searchable
+                  placeholder="Select Nationality"
+                  className="w-full"
+                  selectButtonClassName="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-left"
                 />
               </div>
 
               <div>
-                <label htmlFor="fieId" className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   FIE ID
                 </label>
                 <input
                   type="text"
-                  id="fieId"
                   value={formData.fieId}
-                  onChange={(e) => setFormData(prev => ({ ...prev, fieId: e.target.value }))}
-                  placeholder="FIE License Number"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => setFormData({ ...formData, fieId: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="FIE identification number"
                 />
               </div>
             </div>
 
+            {/* Date of Birth */}
             <div>
-              <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Date of Birth
               </label>
               <input
                 type="date"
-                id="dateOfBirth"
                 value={formData.dateOfBirth}
-                onChange={(e) => setFormData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             {/* Club Selection */}
             <div>
-              <label htmlFor="clubId" className="block text-sm font-medium text-gray-700 mb-1">
-                Training Club
-              </label>
-              {clubsLoading ? (
-                <div className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-500">
-                  Loading clubs...
-                </div>
-              ) : (
-                <select
-                  id="clubId"
-                  value={formData.clubId}
-                  onChange={(e) => setFormData(prev => ({ ...prev, clubId: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select a club (optional)</option>
-                  {clubs.map((club) => (
-                    <option key={club.id} value={club.id}>
-                      {club.name} {club.city && `(${club.city})`}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {clubs.length === 0 && !clubsLoading && (
-                <p className="text-sm text-gray-500 mt-1">
-                  No clubs available. <a href="/clubs" className="text-blue-600 hover:underline">Create one first</a>.
-                </p>
-              )}
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Primary Club
+                </label>
+                <Select
+                  options={filteredClubs.map(club => ({
+                    value: club.id,
+                    label: getClubDisplayName(club),
+                    imageUrl: club.imageUrl,
+                  }))}
+                  value={
+                    formData.clubId
+                      ? {
+                          value: formData.clubId,
+                          label: getClubDisplayName(clubs.find(c => c.id === formData.clubId)!),
+                          imageUrl: clubs.find(c => c.id === formData.clubId)?.imageUrl,
+                        }
+                      : null
+                  }
+                  onChange={(selectedOption) =>
+                    setFormData({ ...formData, clubId: selectedOption?.value || '' })
+                  }
+                  isLoading={loadingClubs}
+                  isClearable
+                  isSearchable
+                  placeholder="Search and select a club..."
+                  formatOptionLabel={({ label, imageUrl }) => {
+                    // Generate initials from club name
+                    const getInitials = (name: string) => {
+                      return name
+                        .split(' ')
+                        .map(word => word.charAt(0))
+                        .join('')
+                        .toUpperCase()
+                        .substring(0, 3);
+                    };
+
+                    // Check if we have a valid image URL
+                    const hasValidImage = imageUrl && imageUrl.trim() !== '';
+
+                    return (
+                      <div className="flex items-center">
+                        {hasValidImage ? (
+                          <img
+                            src={imageUrl}
+                            alt={label}
+                            width={24}
+                            height={24}
+                            className="mr-2 rounded-full object-cover"
+                            onError={(e) => { 
+                              // Hide the image and show initials fallback
+                              e.currentTarget.style.display = 'none';
+                              const initialsDiv = e.currentTarget.nextElementSibling as HTMLElement;
+                              if (initialsDiv) initialsDiv.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        <div 
+                          className={`w-6 h-6 mr-2 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-semibold ${hasValidImage ? 'hidden' : ''}`}
+                          style={{ fontSize: '10px' }}
+                        >
+                          {getInitials(label)}
+                        </div>
+                        <span>{label}</span>
+                      </div>
+                    );
+                  }}
+                  styles={{
+                    control: (base) => ({
+                      ...base,
+                      borderColor: '#D1D5DB',
+                      borderRadius: '0.5rem',
+                      padding: '0.25rem',
+                    }),
+                  }}
+                />
+              </div>
             </div>
 
             {/* Weapons */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Weapons
               </label>
               <div className="space-y-2">
@@ -272,12 +351,10 @@ export default function AthleteForm({ athlete, onClose, onSuccess }: AthleteForm
                     <input
                       type="checkbox"
                       checked={formData.weapons.includes(weapon)}
-                      onChange={() => handleWeaponToggle(weapon)}
-                      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      onChange={() => handleWeaponChange(weapon)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
-                    <span className="ml-2 text-sm text-gray-700">
-                      {weapon === 'EPEE' ? 'Épée' : weapon.charAt(0) + weapon.slice(1).toLowerCase()}
-                    </span>
+                    <span className="ml-2 text-sm text-gray-700">{weapon}</span>
                   </label>
                 ))}
               </div>
@@ -289,28 +366,29 @@ export default function AthleteForm({ athlete, onClose, onSuccess }: AthleteForm
                 <input
                   type="checkbox"
                   checked={formData.isActive}
-                  onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="ml-2 text-sm text-gray-700">Active</span>
+                <span className="ml-2 text-sm text-gray-700">Active athlete</span>
               </label>
             </div>
 
-            {/* Actions */}
-            <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-3 pt-6 border-t">
               <button
                 type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                onClick={onCancel}
+                className="px-6 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                disabled={loading}
               >
                 Cancel
               </button>
               <button
                 type="submit"
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg transition-colors"
                 disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
               >
-                {loading ? 'Saving...' : (athlete ? 'Update Athlete' : 'Create Athlete')}
+                {loading ? 'Saving...' : (athlete?.id ? 'Update Athlete' : 'Create Athlete')}
               </button>
             </div>
           </form>
