@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
         clubs: {
           include: {
             club: {
-              select: { id: true, name: true, city: true, country: true },
+              select: { id: true, name: true, city: true, country: true, imageUrl: true },
             },
           },
         },
@@ -230,7 +230,7 @@ export async function POST(request: NextRequest) {
         clubs: {
           include: {
             club: {
-              select: { id: true, name: true, city: true, country: true },
+              select: { id: true, name: true, city: true, country: true, imageUrl: true },
             },
           },
         },

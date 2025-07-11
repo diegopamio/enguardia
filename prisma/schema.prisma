@@ -231,6 +231,7 @@ model Club {
   name        String
   city        String?
   country     String   // ISO 3166-1 alpha-2 code
+  imageUrl    String?  // Club logo URL
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   createdById String?
