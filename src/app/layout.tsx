@@ -4,6 +4,7 @@ import "./globals.css";
 import SessionProvider from "@/components/SessionProvider";
 import Header from "@/components/Header";
 import { Toaster } from "react-hot-toast";
+import ClientOnly from "@/components/ClientOnly";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,8 +32,12 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <SessionProvider>
-          <Header />
-          {children}
+          <ClientOnly>
+            <Header />
+          </ClientOnly>
+          <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+            {children}
+          </main>
         </SessionProvider>
         <Toaster 
           position="top-right"
@@ -42,11 +47,13 @@ export default function RootLayout({
           containerStyle={{}}
           toastOptions={{
             // Define default options
-            className: '',
+            className: 'toast-light',
             duration: 4000,
             style: {
-              background: '#363636',
-              color: '#fff',
+              background: 'white',
+              color: '#1f2937',
+              border: '1px solid #e5e7eb',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
             },
             // Default options for specific types
             success: {

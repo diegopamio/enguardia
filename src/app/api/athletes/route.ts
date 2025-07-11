@@ -14,6 +14,7 @@ const athleteSchema = z.object({
   isActive: z.boolean().default(true),
   weapons: z.array(z.enum(['EPEE', 'FOIL', 'SABRE'])).optional().default([]),
   organizationId: z.string().optional().nullable(), // For creating organizational affiliation
+  clubId: z.string().optional().nullable(), // For creating club affiliation
 });
 
 // GET /api/athletes - List athletes with optional filtering
@@ -70,6 +71,13 @@ export async function GET(request: NextRequest) {
           include: {
             organization: {
               select: { id: true, name: true },
+            },
+          },
+        },
+        clubs: {
+          include: {
+            club: {
+              select: { id: true, name: true, city: true, country: true },
             },
           },
         },
@@ -135,6 +143,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Verify club belongs to the organization if both are specified
+    if (validatedData.clubId && validatedData.organizationId) {
+      const club = await prisma.club.findFirst({
+        where: {
+          id: validatedData.clubId,
+          organizationId: validatedData.organizationId,
+        },
+      });
+      if (!club) {
+        return NextResponse.json(
+          { error: 'Club does not belong to the specified organization' },
+          { status: 400 }
+        );
+      }
+    }
+
     const athlete = await prisma.athlete.create({
       data: {
         firstName: validatedData.firstName,
@@ -157,6 +181,17 @@ export async function POST(request: NextRequest) {
             },
           },
         }),
+        // Create club affiliation if specified
+        ...(validatedData.clubId && {
+          clubs: {
+            create: {
+              clubId: validatedData.clubId,
+              membershipType: 'MEMBER',
+              status: 'ACTIVE',
+              isPrimary: true, // First club is primary
+            },
+          },
+        }),
       },
       include: {
         weapons: true,
@@ -164,6 +199,13 @@ export async function POST(request: NextRequest) {
           include: {
             organization: {
               select: { id: true, name: true },
+            },
+          },
+        },
+        clubs: {
+          include: {
+            club: {
+              select: { id: true, name: true, city: true, country: true },
             },
           },
         },
