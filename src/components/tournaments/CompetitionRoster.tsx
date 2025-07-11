@@ -1,17 +1,20 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
-import { useRoleCheck } from '@/lib/auth-client'
-import { getCountryName } from '@/lib/countries'
+import React, { useState, useCallback, useMemo } from "react"
+import { useRouter, useParams } from "next/navigation"
+import { useRoleCheck } from "@/lib/auth-client"
 import { 
   useCompetitionRegistrations, 
   useUnregisterAthlete, 
   useBulkUpdatePresence,
-  type CompetitionRegistration 
-} from '@/hooks/useCompetitionRegistrations'
-import RegistrationManager from './RegistrationManager'
-import PresenceTracker from './PresenceTracker'
-import ConfirmationModal from '@/components/shared/ConfirmationModal'
+  useUpdateRegistration,
+  type CompetitionRegistration
+} from "@/hooks/useCompetitionRegistrations"
+import { NotificationError, notify } from "@/lib/notifications"
+import { getCountryName } from "@/lib/countries"
+import RegistrationManager from "./RegistrationManager"
+import PresenceTracker from "./PresenceTracker"
+import ConfirmationModal from "../shared/ConfirmationModal"
 
 interface CompetitionRosterProps {
   competitionId: string
@@ -20,16 +23,31 @@ interface CompetitionRosterProps {
     name: string
     weapon: string
     category: string
-    maxParticipants?: number
-    status: string
+    status?: string
   }
   onBack?: () => void
 }
 
 export default function CompetitionRoster({ competitionId, competition, onBack }: CompetitionRosterProps) {
+  const router = useRouter()
+  const params = useParams()
+  
   // Access control
   const { isSystemAdmin, isOrganizationAdmin } = useRoleCheck()
   const canManageRegistrations = isSystemAdmin() || isOrganizationAdmin()
+
+  // Handle back navigation
+  const handleBack = useCallback(() => {
+    if (onBack) {
+      onBack()
+    } else if (params?.id) {
+      // Navigate back to tournament competitions view
+      router.push(`/tournaments/${params.id}`)
+    } else {
+      // Fallback to tournaments list
+      router.push('/tournaments')
+    }
+  }, [onBack, router, params])
 
   // State management
   const [showRegistrationManager, setShowRegistrationManager] = useState(false)
@@ -53,6 +71,7 @@ export default function CompetitionRoster({ competitionId, competition, onBack }
   const { data: registrationsData, isLoading, error, refetch } = useCompetitionRegistrations(competitionId, registrationFilters)
   const unregisterAthleteMutation = useUnregisterAthlete()
   const bulkUpdatePresenceMutation = useBulkUpdatePresence()
+  const updateRegistrationMutation = useUpdateRegistration()
 
   const registrations = registrationsData?.registrations || []
   const competitionInfo = registrationsData?.competition || competition
@@ -143,6 +162,19 @@ export default function CompetitionRoster({ competitionId, competition, onBack }
     setAthleteToDelete(null)
   }, [])
 
+  // Individual presence update
+  const handleUpdatePresence = useCallback(async (athleteId: string, isPresent: boolean) => {
+    try {
+      await updateRegistrationMutation.mutateAsync({
+        competitionId,
+        athleteId,
+        isPresent
+      })
+    } catch (err) {
+      console.error('Failed to update presence:', err)
+    }
+  }, [updateRegistrationMutation, competitionId])
+
   // Bulk presence update
   const handleBulkPresenceUpdate = useCallback(async (isPresent: boolean) => {
     if (selectedAthletes.length === 0) return
@@ -175,9 +207,17 @@ export default function CompetitionRoster({ competitionId, competition, onBack }
   }
 
   // Presence indicator
-  const PresenceIndicator = ({ isPresent }: { isPresent: boolean }) => (
-    <span className={`w-3 h-3 rounded-full ${isPresent ? 'bg-green-500' : 'bg-red-500'}`} title={isPresent ? 'Present' : 'Absent'} />
-  )
+  const PresenceIndicator = ({ isPresent }: { isPresent: boolean | null }) => {
+    if (isPresent === null || isPresent === undefined) {
+      return <span className="text-gray-400">—</span>
+    }
+    return (
+      <span 
+        className={`inline-block w-3 h-3 rounded-full ${isPresent ? 'bg-green-500' : 'bg-red-500'}`} 
+        title={isPresent ? 'Present' : 'Absent'} 
+      />
+    )
+  }
 
   if (error) {
     return (
@@ -202,7 +242,7 @@ export default function CompetitionRoster({ competitionId, competition, onBack }
         <div className="flex items-center gap-4">
           {onBack && (
             <button
-              onClick={onBack}
+              onClick={handleBack}
               className="text-gray-600 hover:text-gray-800 flex items-center gap-2"
             >
               ← Back
@@ -428,8 +468,22 @@ export default function CompetitionRoster({ competitionId, competition, onBack }
                       {canManageRegistrations && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button
-                            onClick={() => handleDeleteRequest(registration)}
+                            onClick={() => handleUpdatePresence(registration.athleteId, true)}
+                            className="text-green-600 hover:text-green-900 mr-2"
+                            disabled={updateRegistrationMutation.isPending}
+                          >
+                            Mark Present
+                          </button>
+                          <button
+                            onClick={() => handleUpdatePresence(registration.athleteId, false)}
                             className="text-red-600 hover:text-red-900"
+                            disabled={updateRegistrationMutation.isPending}
+                          >
+                            Mark Absent
+                          </button>
+                          <button
+                            onClick={() => handleDeleteRequest(registration)}
+                            className="text-red-600 hover:text-red-900 ml-2"
                             disabled={unregisterAthleteMutation.isPending}
                           >
                             Remove
