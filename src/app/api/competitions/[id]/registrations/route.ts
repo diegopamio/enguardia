@@ -36,16 +36,10 @@ export async function GET(
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = parseInt(searchParams.get('offset') || '0')
 
-    // Verify competition exists and user has access
+    // Verify competition exists (global access for athlete management)
     const competition = await prisma.competition.findFirst({
       where: {
-        id: competitionId,
-        tournament: {
-          OR: [
-            { organizationId: session.user.organizationId },
-            { isPublic: true }
-          ]
-        }
+        id: competitionId
       },
       select: { id: true, name: true, weapon: true, category: true }
     })
@@ -134,37 +128,19 @@ export async function POST(
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Check permissions
-    if (!['SYSTEM_ADMIN', 'ORGANIZATION_ADMIN'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
-
-    const competitionId = (await params).id
-    const body = await request.json()
-    const isBulk = Array.isArray(body.athleteIds)
-
-    // Validate input
-    const validationResult = isBulk 
-      ? bulkRegistrationSchema.safeParse(body)
-      : registrationSchema.safeParse(body)
-
-    if (!validationResult.success) {
       return NextResponse.json(
-        { error: 'Validation failed', details: validationResult.error.errors },
-        { status: 400 }
+        { error: 'Unauthorized' },
+        { status: 401 }
       )
     }
 
-    // Verify competition exists and user has access
+    const body = await request.json()
+    const { id: competitionId } = await params
+
+    // Verify competition exists (removed organization restriction for global athlete access)
     const competition = await prisma.competition.findFirst({
       where: {
-        id: competitionId,
-        tournament: {
-          organizationId: session.user.organizationId
-        }
+        id: competitionId
       },
       include: {
         tournament: {
@@ -177,7 +153,29 @@ export async function POST(
     })
 
     if (!competition) {
-      return NextResponse.json({ error: 'Competition not found' }, { status: 404 })
+      return NextResponse.json(
+        { error: 'Competition not found' },
+        { status: 404 }
+      )
+    }
+
+    // Check permissions
+    if (!['SYSTEM_ADMIN', 'ORGANIZATION_ADMIN'].includes(session.user.role)) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+    }
+
+    const isBulk = Array.isArray(body.athleteIds)
+
+    // Validate input
+    const validationResult = isBulk 
+      ? bulkRegistrationSchema.safeParse(body)
+      : registrationSchema.safeParse(body)
+
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: validationResult.error.errors },
+        { status: 400 }
+      )
     }
 
     // Check business rules
@@ -228,32 +226,25 @@ export async function POST(
         data: newAthleteIds.map(athleteId => ({
           competitionId,
           athleteId,
-          isPresent,
-          status
+          isPresent: isPresent ?? true,
+          status: status ?? 'REGISTERED'
         }))
       })
 
       result = {
-        message: `Successfully registered ${newAthleteIds.length} athletes`,
+        message: `Successfully registered ${newAthleteIds.length} athlete${newAthleteIds.length !== 1 ? 's' : ''}`,
         registered: newAthleteIds.length,
         skipped: alreadyRegistered.length
       }
 
+      if (alreadyRegistered.length > 0) {
+        result.message += `. ${alreadyRegistered.length} already registered.`
+      }
     } else {
       // Single registration
       const { athleteId, seedNumber, isPresent, status } = validationResult.data
 
-      // Check if athlete exists
-      const athlete = await prisma.athlete.findUnique({
-        where: { id: athleteId },
-        select: { id: true, firstName: true, lastName: true }
-      })
-
-      if (!athlete) {
-        return NextResponse.json({ error: 'Athlete not found' }, { status: 404 })
-      }
-
-      // Check for existing registration
+      // Check if athlete is already registered
       const existingRegistration = await prisma.competitionRegistration.findUnique({
         where: {
           competitionId_athleteId: {
@@ -276,29 +267,21 @@ export async function POST(
           competitionId,
           athleteId,
           seedNumber,
-          isPresent,
-          status
-        },
-        include: {
-          athlete: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              nationality: true,
-              fieId: true
-            }
-          }
+          isPresent: isPresent ?? true,
+          status: status ?? 'REGISTERED'
         }
       })
 
-      result = registration
+      result = {
+        message: 'Athlete registered successfully',
+        registration
+      }
     }
 
     return NextResponse.json(result, { status: 201 })
 
   } catch (error) {
-    console.error('Error registering athletes:', error)
+    console.error('Error registering athlete(s):', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from "react"
+import { useRouter, useParams } from "next/navigation"
 import { useRoleCheck } from "@/lib/auth-client"
 import { notify, apiFetch, NotificationError, confirmDelete } from "@/lib/notifications"
 import CompetitionForm from "../competitions/CompetitionForm"
@@ -24,15 +25,19 @@ interface Competition {
 
 interface TournamentCompetitionsProps {
   tournamentId: string
-  tournamentName: string
+  tournamentName?: string
   organizationId?: string
+  onBack?: () => void
 }
 
 export default function TournamentCompetitions({ 
   tournamentId, 
-  tournamentName,
-  organizationId 
+  tournamentName: propTournamentName,
+  organizationId,
+  onBack
 }: TournamentCompetitionsProps) {
+  const router = useRouter()
+  const params = useParams()
   const { isSystemAdmin, isOrganizationAdmin } = useRoleCheck()
   
   // State management
@@ -42,11 +47,31 @@ export default function TournamentCompetitions({
   const [loading, setLoading] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
   const [viewingRoster, setViewingRoster] = useState<Competition | null>(null)
+  const [tournamentName, setTournamentName] = useState(propTournamentName || "")
 
   // Role-based access control
   const canCreate = isSystemAdmin() || isOrganizationAdmin()
   const canEdit = isSystemAdmin() || isOrganizationAdmin()
   const canDelete = isSystemAdmin() || isOrganizationAdmin()
+
+  // Handle back navigation
+  const handleBack = useCallback(() => {
+    if (onBack) {
+      onBack()
+    } else {
+      router.push('/tournaments')
+    }
+  }, [onBack, router])
+
+  // Handle competition viewing - navigate to nested route
+  const handleViewCompetition = useCallback((competitionId: string) => {
+    router.push(`/tournaments/${tournamentId}/competitions/${competitionId}`)
+  }, [router, tournamentId])
+
+  // Handle roster view back
+  const handleRosterBack = useCallback(() => {
+    setViewingRoster(null)
+  }, [])
 
   // Fetch competitions for this tournament
   const fetchCompetitions = useCallback(async () => {
@@ -205,20 +230,6 @@ export default function TournamentCompetitions({
     setEditingCompetition(null)
   }, [])
 
-  // Handle view competition details
-  const handleViewCompetition = useCallback((competitionId: string) => {
-    // Find the competition to view roster for
-    const competition = competitions.find(c => c.id === competitionId)
-    if (competition) {
-      setViewingRoster(competition)
-    }
-  }, [competitions])
-
-  // Handle roster view back
-  const handleRosterBack = useCallback(() => {
-    setViewingRoster(null)
-  }, [])
-
   // Weapon icons
   const getWeaponIcon = (weapon: string) => {
     switch (weapon) {
@@ -283,7 +294,17 @@ export default function TournamentCompetitions({
   return (
     <div className="bg-white shadow rounded-lg p-6">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-medium text-gray-900">Competitions</h3>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleBack}
+            className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+          >
+            ← Back to Tournaments
+          </button>
+          <div>
+            <h3 className="text-lg font-medium text-gray-900">{tournamentName} - Competitions</h3>
+          </div>
+        </div>
         {canCreate && (
           <button
             onClick={handleCompetitionCreate}

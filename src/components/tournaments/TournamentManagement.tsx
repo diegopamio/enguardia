@@ -25,6 +25,7 @@ export default function TournamentManagement({ organizationId }: TournamentManag
   // State management
   const [currentView, setCurrentView] = useState<ViewMode>("list")
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   // TanStack Query hooks
   const { data: tournamentsData, isLoading, error, refetch } = useTournaments(organizationId ? { organizationId } : {})
@@ -76,6 +77,7 @@ export default function TournamentManagement({ organizationId }: TournamentManag
   const handleFormSuccess = useCallback(() => {
     setCurrentView("list")
     setSelectedTournament(null)
+    setRefreshKey(prev => prev + 1) // Trigger refresh
     // TanStack Query will automatically invalidate and refetch
   }, [])
 
@@ -130,23 +132,24 @@ export default function TournamentManagement({ organizationId }: TournamentManag
       case "view":
         return (
           <TournamentCompetitions
-            tournament={selectedTournament}
-            onBack={() => setCurrentView("list")}
-            onEdit={canEdit ? () => handleTournamentEdit(selectedTournament!) : undefined}
-            onDelete={canDelete ? () => handleTournamentDelete(selectedTournament!.id) : undefined}
+            tournamentId={selectedTournament?.id || ""}
+            tournamentName={selectedTournament?.name || ""}
             organizationId={organizationId}
+            onBack={() => setCurrentView("list")}
           />
         )
       
       default:
         return (
           <TournamentList
-            tournaments={tournamentsData?.tournaments || []}
-            loading={isLoading}
-            onView={handleTournamentView}
-            onEdit={canEdit ? handleTournamentEdit : undefined}
-            onDelete={canDelete ? handleTournamentDelete : undefined}
-            onCreate={canCreate ? handleTournamentCreate : undefined}
+            onTournamentCreate={handleTournamentCreate}
+            onTournamentEdit={handleTournamentEdit}
+            onTournamentView={handleTournamentView}
+            onTournamentDelete={handleTournamentDelete}
+            canCreate={canCreate}
+            canEdit={canEdit}
+            canDelete={canDelete}
+            refreshKey={refreshKey}
             organizationId={organizationId}
           />
         )

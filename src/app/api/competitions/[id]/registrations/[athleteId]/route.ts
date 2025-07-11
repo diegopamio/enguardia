@@ -25,16 +25,10 @@ export async function GET(
 
     const { id: competitionId, athleteId } = await params
 
-    // Verify competition exists and user has access
+    // Verify competition exists (global access for athlete management)
     const competition = await prisma.competition.findFirst({
       where: {
-        id: competitionId,
-        tournament: {
-          OR: [
-            { organizationId: session.user.organizationId },
-            { isPublic: true }
-          ]
-        }
+        id: competitionId
       }
     })
 
@@ -108,6 +102,8 @@ export async function PUT(
     const { id: competitionId, athleteId } = await params
     const body = await request.json()
     
+    console.log('PUT /registrations/[athleteId] - Request body:', body)
+    
     const validationResult = updateRegistrationSchema.safeParse(body)
     if (!validationResult.success) {
       return NextResponse.json(
@@ -116,13 +112,12 @@ export async function PUT(
       )
     }
 
-    // Verify competition exists and user has access
+    console.log('PUT /registrations/[athleteId] - Validation result:', validationResult.data)
+
+    // Verify competition exists (global access for athlete management)
     const competition = await prisma.competition.findFirst({
       where: {
-        id: competitionId,
-        tournament: {
-          organizationId: session.user.organizationId
-        }
+        id: competitionId
       },
       include: {
         tournament: {
@@ -158,6 +153,7 @@ export async function PUT(
     }
 
     // Update registration
+    console.log('PUT /registrations/[athleteId] - About to update with data:', validationResult.data)
     const updatedRegistration = await prisma.competitionRegistration.update({
       where: {
         competitionId_athleteId: {
@@ -178,6 +174,8 @@ export async function PUT(
         }
       }
     })
+
+    console.log('PUT /registrations/[athleteId] - Updated registration result:', updatedRegistration)
 
     return NextResponse.json(updatedRegistration)
 
@@ -208,13 +206,10 @@ export async function DELETE(
 
     const { id: competitionId, athleteId } = await params
 
-    // Verify competition exists and user has access
+    // Verify competition exists (global access for athlete management)
     const competition = await prisma.competition.findFirst({
       where: {
-        id: competitionId,
-        tournament: {
-          organizationId: session.user.organizationId
-        }
+        id: competitionId
       },
       include: {
         tournament: {

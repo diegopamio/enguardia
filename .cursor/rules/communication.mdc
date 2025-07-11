@@ -1,0 +1,49 @@
+# Communication Rules
+
+## **CRITICAL: Never Claim Fixes Are Complete**
+
+- **❌ NEVER SAY:**
+  - "I've fixed the issue"
+  - "Perfect! I've fixed both issues"
+  - "Issues fixed:"
+  - "The problem is fixed"
+  - Any definitive statement that something is working
+
+- **✅ ALWAYS SAY:**
+  - "I've made changes that should address..."
+  - "These changes should fix..."
+  - "This should resolve..."
+  - "I've implemented changes to..."
+  - "Please test to see if this resolves..."
+
+## **User Verification Required**
+
+- **Wait for user confirmation** before claiming anything works
+- **Ask users to test** after making changes
+- **Let the user be the one** to confirm if fixes actually work
+- **Acknowledge when unsure** about whether changes will work
+
+## **Example Communication Pattern**
+
+```markdown
+❌ BAD: "Perfect! I've fixed both issues. The roster now shows registered athletes and the registration UI properly handles duplicates."
+
+✅ GOOD: "I've made changes that should address both issues:
+1. Modified RegistrationManager to fetch current registrations and show already-registered athletes as disabled
+2. Updated the UI to separate registered vs available athletes
+
+Please test the roster view and registration flow to see if these changes resolve the issues."
+```
+
+## **When User Corrects**
+
+- **Acknowledge the correction** immediately
+- **Don't make excuses** about why the fix didn't work
+- **Focus on debugging** the actual issue
+- **Thank the user** for testing and providing feedback
+
+This rule applies to ALL development work - code changes, configurations, deployments, etc.
+description:
+globs:
+alwaysApply: true
+---

@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useMemo } from 'react'
 import { useAthletes, type Athlete } from '@/hooks/useAthletes'
-import { useRegisterAthlete, useBulkRegisterAthletes } from '@/hooks/useCompetitionRegistrations'
+import { useRegisterAthlete, useBulkRegisterAthletes, useCompetitionRegistrations } from '@/hooks/useCompetitionRegistrations'
 import { getCountryName } from '@/lib/countries'
 
 interface RegistrationManagerProps {
@@ -29,7 +29,6 @@ export default function RegistrationManager({
   const [organizationFilter, setOrganizationFilter] = useState('')
   const [selectedAthletes, setSelectedAthletes] = useState<Athlete[]>([])
   const [currentPage, setCurrentPage] = useState(0)
-  const [allAthletes, setAllAthletes] = useState<Athlete[]>([])
   const limit = 50
 
   // TanStack Query hooks
@@ -44,22 +43,53 @@ export default function RegistrationManager({
   const { data: athletesData, isLoading, error } = useAthletes(athleteFilters)
   const registerAthleteMutation = useRegisterAthlete()
   const bulkRegisterMutation = useBulkRegisterAthletes()
+  
+  // Fetch current registrations to know which athletes are already registered
+  const { data: registrationsData } = useCompetitionRegistrations(competitionId, { limit: 1000 }) // Get all registrations
+  const registeredAthleteIds = useMemo(() => 
+    new Set(registrationsData?.registrations?.map(r => r.athleteId) || []),
+    [registrationsData?.registrations]
+  )
 
   const currentPageAthletes = athletesData?.athletes || []
   const pagination = athletesData?.pagination || { total: 0, limit, offset: 0, hasMore: false }
 
-  // Accumulate athletes from all pages
-  React.useEffect(() => {
+  // Use current page athletes directly for first page, accumulate for subsequent pages
+  const [accumulatedAthletes, setAccumulatedAthletes] = React.useState<Athlete[]>([])
+  
+  // Simple data handling: use current page for page 0, accumulate for others
+  const allAthletes = React.useMemo(() => {
     if (currentPage === 0) {
-      setAllAthletes(currentPageAthletes)
-      setSelectedAthletes([]) // Clear selections on filter change
-    } else if (currentPageAthletes.length > 0) {
-      setAllAthletes(prev => [...prev, ...currentPageAthletes])
+      return currentPageAthletes
+    } else {
+      return accumulatedAthletes
     }
-  }, [currentPageAthletes, currentPage])
+  }, [currentPage, currentPageAthletes, accumulatedAthletes])
 
-  // Selection handlers
+  // Accumulate athletes when loading additional pages
+  React.useEffect(() => {
+    if (currentPage > 0 && currentPageAthletes.length > 0) {
+      setAccumulatedAthletes(prev => {
+        const existingIds = new Set(prev.map(a => a.id))
+        const newAthletes = currentPageAthletes.filter(athlete => !existingIds.has(athlete.id))
+        return newAthletes.length > 0 ? [...prev, ...newAthletes] : prev
+      })
+    }
+  }, [currentPage, currentPageAthletes.length])
+  
+  // Reset accumulated data when filters change
+  React.useEffect(() => {
+    setAccumulatedAthletes([])
+    setCurrentPage(0)
+    setSelectedAthletes([])
+  }, [searchTerm, weaponFilter, organizationFilter])
+  
+  // Selection handlers - only allow selection of unregistered athletes
   const handleSelectAthlete = useCallback((athlete: Athlete) => {
+    if (registeredAthleteIds.has(athlete.id)) {
+      return // Don't allow selection of already registered athletes
+    }
+    
     setSelectedAthletes(prev => {
       const isSelected = prev.some(a => a.id === athlete.id)
       if (isSelected) {
@@ -68,15 +98,18 @@ export default function RegistrationManager({
         return [...prev, athlete]
       }
     })
-  }, [])
+  }, [registeredAthleteIds])
 
   const handleSelectAll = useCallback(() => {
-    if (selectedAthletes.length === allAthletes.length) {
+    // Only select unregistered athletes
+    const unregisteredAthletes = allAthletes.filter(athlete => !registeredAthleteIds.has(athlete.id))
+    
+    if (selectedAthletes.length === unregisteredAthletes.length) {
       setSelectedAthletes([])
     } else {
-      setSelectedAthletes([...allAthletes])
+      setSelectedAthletes([...unregisteredAthletes])
     }
-  }, [allAthletes, selectedAthletes])
+  }, [allAthletes, selectedAthletes, registeredAthleteIds])
 
   const handleClearSelection = useCallback(() => {
     setSelectedAthletes([])
@@ -128,18 +161,21 @@ export default function RegistrationManager({
   }, [selectedAthletes, competitionId, registerAthleteMutation, bulkRegisterMutation, onSuccess])
 
   const handleRegisterSingle = useCallback(async (athlete: Athlete) => {
+    if (registeredAthleteIds.has(athlete.id)) {
+      return // Don't allow registration of already registered athletes
+    }
+    
     try {
       await registerAthleteMutation.mutateAsync({
         competitionId,
         athleteId: athlete.id
       })
-      // Remove from available list
-      setAllAthletes(prev => prev.filter(a => a.id !== athlete.id))
+      // Remove from selected list only (the list will refresh after successful registration)
       setSelectedAthletes(prev => prev.filter(a => a.id !== athlete.id))
     } catch (error) {
       console.error('Registration failed:', error)
     }
-  }, [competitionId, registerAthleteMutation])
+  }, [competitionId, registerAthleteMutation, registeredAthleteIds])
 
   // Filter athletes to show compatible weapons
   const compatibleAthletes = useMemo(() => {
@@ -149,6 +185,13 @@ export default function RegistrationManager({
       athlete.weapons.some(w => w.weapon === competition.weapon)
     )
   }, [allAthletes, competition?.weapon])
+
+  // Separate registered and unregistered athletes for better UX
+  const { registeredAthletes, unregisteredAthletes } = useMemo(() => {
+    const registered = compatibleAthletes.filter(athlete => registeredAthleteIds.has(athlete.id))
+    const unregistered = compatibleAthletes.filter(athlete => !registeredAthleteIds.has(athlete.id))
+    return { registeredAthletes: registered, unregisteredAthletes: unregistered }
+  }, [compatibleAthletes, registeredAthleteIds])
 
   const isLoading_ = isLoading || registerAthleteMutation.isPending || bulkRegisterMutation.isPending
 
@@ -253,19 +296,20 @@ export default function RegistrationManager({
           )}
 
           {/* Bulk Actions */}
-          {compatibleAthletes.length > 0 && (
+          {unregisteredAthletes.length > 0 && (
             <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg mb-4">
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={selectedAthletes.length === compatibleAthletes.length && compatibleAthletes.length > 0}
+                  checked={selectedAthletes.length === unregisteredAthletes.length && unregisteredAthletes.length > 0}
                   onChange={handleSelectAll}
                   className="h-4 w-4 text-blue-600 rounded"
                   disabled={isLoading_}
                 />
-                <span className="text-sm font-medium">Select All ({compatibleAthletes.length})</span>
+                <span className="text-sm font-medium">Select All Available ({unregisteredAthletes.length})</span>
               </label>
               <span className="text-sm text-gray-600">
+                {registeredAthletes.length > 0 && `${registeredAthletes.length} already registered • `}
                 Showing athletes with {competition?.weapon || 'compatible weapons'}
               </span>
             </div>
@@ -290,63 +334,145 @@ export default function RegistrationManager({
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {compatibleAthletes.map((athlete) => {
-                  const isSelected = selectedAthletes.some(a => a.id === athlete.id)
-                  const primaryClub = athlete.clubs.find(c => true)?.club // Simplified for now
-                  const weapons = athlete.weapons.map(w => w.weapon).join(', ')
-                  
-                  return (
-                    <div
-                      key={athlete.id}
-                      className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${
-                        isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => handleSelectAthlete(athlete)}
-                              className="h-4 w-4 text-blue-600 rounded"
-                              disabled={isLoading_}
-                            />
-                            <h3 className="font-medium text-gray-900">
-                              {athlete.firstName} {athlete.lastName}
-                            </h3>
-                          </div>
-                          
-                          <div className="space-y-1 text-sm text-gray-600">
-                            {athlete.nationality && (
-                              <div>{getCountryName(athlete.nationality)}</div>
-                            )}
-                            {athlete.fieId && (
-                              <div>FIE ID: {athlete.fieId}</div>
-                            )}
-                            {weapons && (
-                              <div>Weapons: {weapons}</div>
-                            )}
-                            {primaryClub && (
-                              <div>Club: {primaryClub.name}</div>
-                            )}
+            <div className="space-y-6">
+              {/* Already Registered Athletes (if any) */}
+              {registeredAthletes.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center gap-2">
+                    <span className="w-3 h-3 bg-green-500 rounded-full"></span>
+                    Already Registered ({registeredAthletes.length})
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {registeredAthletes.map((athlete) => {
+                      const primaryClub = athlete.clubs.find(c => true)?.club
+                      const weapons = athlete.weapons.map(w => w.weapon).join(', ')
+                      
+                      return (
+                        <div
+                          key={athlete.id}
+                          className="border border-green-200 bg-green-50 rounded-lg p-4 opacity-75"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <input
+                                  type="checkbox"
+                                  checked={false}
+                                  disabled={true}
+                                  className="h-4 w-4 text-green-600 rounded opacity-50"
+                                />
+                                <h3 className="font-medium text-gray-700">
+                                  {athlete.firstName} {athlete.lastName}
+                                </h3>
+                                <span className="text-xs bg-green-600 text-white px-2 py-1 rounded">
+                                  REGISTERED
+                                </span>
+                              </div>
+                              
+                              <div className="space-y-1 text-sm text-gray-600">
+                                {athlete.nationality && (
+                                  <div>{getCountryName(athlete.nationality)}</div>
+                                )}
+                                {athlete.fieId && (
+                                  <div>FIE ID: {athlete.fieId}</div>
+                                )}
+                                {weapons && (
+                                  <div>Weapons: {weapons}</div>
+                                )}
+                                {primaryClub && (
+                                  <div>Club: {primaryClub.name}</div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <button
+                              disabled={true}
+                              className="ml-2 text-gray-400 text-sm font-medium cursor-not-allowed"
+                            >
+                              Already Added
+                            </button>
                           </div>
                         </div>
-                        
-                        <button
-                          onClick={() => handleRegisterSingle(athlete)}
-                          disabled={isLoading_}
-                          className="ml-2 text-blue-600 hover:text-blue-800 text-sm font-medium disabled:opacity-50"
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Available Athletes */}
+              {unregisteredAthletes.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center gap-2">
+                    <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
+                    Available to Register ({unregisteredAthletes.length})
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {unregisteredAthletes.map((athlete) => {
+                      const isSelected = selectedAthletes.some(a => a.id === athlete.id)
+                      const primaryClub = athlete.clubs.find(c => true)?.club
+                      const weapons = athlete.weapons.map(w => w.weapon).join(', ')
+                      
+                      return (
+                        <div
+                          key={athlete.id}
+                          className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${
+                            isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                          }`}
                         >
-                          Register
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => handleSelectAthlete(athlete)}
+                                  className="h-4 w-4 text-blue-600 rounded"
+                                  disabled={isLoading_}
+                                />
+                                <h3 className="font-medium text-gray-900">
+                                  {athlete.firstName} {athlete.lastName}
+                                </h3>
+                              </div>
+                              
+                              <div className="space-y-1 text-sm text-gray-600">
+                                {athlete.nationality && (
+                                  <div>{getCountryName(athlete.nationality)}</div>
+                                )}
+                                {athlete.fieId && (
+                                  <div>FIE ID: {athlete.fieId}</div>
+                                )}
+                                {weapons && (
+                                  <div>Weapons: {weapons}</div>
+                                )}
+                                {primaryClub && (
+                                  <div>Club: {primaryClub.name}</div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <button
+                              onClick={() => handleRegisterSingle(athlete)}
+                              disabled={isLoading_}
+                              className="ml-2 text-blue-600 hover:text-blue-800 text-sm font-medium disabled:opacity-50"
+                            >
+                              Register
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* No Available Athletes */}
+              {unregisteredAthletes.length === 0 && registeredAthletes.length > 0 && (
+                <div className="text-center py-8">
+                  <p className="text-gray-600">
+                    All compatible athletes are already registered for this competition.
+                  </p>
+                </div>
+              )}
 
               {/* Load More */}
               {pagination.hasMore && (

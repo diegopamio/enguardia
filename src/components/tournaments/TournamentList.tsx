@@ -1,13 +1,13 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { notify, apiFetch, NotificationError, getMessage } from "@/lib/notifications"
 import { Tournament } from "./TournamentManagement"
 
 interface TournamentListProps {
   onTournamentCreate: () => void
   onTournamentEdit: (tournament: Tournament) => void
-  onTournamentView: (tournament: Tournament) => void
   onTournamentDelete: (tournamentId: string) => void
   canCreate: boolean
   canEdit: boolean
@@ -19,7 +19,6 @@ interface TournamentListProps {
 export default function TournamentList({
   onTournamentCreate,
   onTournamentEdit,
-  onTournamentView,
   onTournamentDelete,
   canCreate,
   canEdit,
@@ -27,6 +26,7 @@ export default function TournamentList({
   refreshKey,
   organizationId
 }: TournamentListProps) {
+  const router = useRouter()
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -34,6 +34,11 @@ export default function TournamentList({
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const itemsPerPage = 20
+
+  // Handle tournament viewing using Next.js router
+  const handleTournamentView = useCallback((tournament: Tournament) => {
+    router.push(`/tournaments/${tournament.id}`)
+  }, [router])
 
   // Fetch tournaments
   const fetchTournaments = useCallback(async () => {
@@ -249,7 +254,7 @@ export default function TournamentList({
                 
                 <div className="flex flex-col sm:flex-row gap-2 ml-4">
                   <button
-                    onClick={() => onTournamentView(tournament)}
+                    onClick={() => handleTournamentView(tournament)}
                     className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
                   >
                     View
