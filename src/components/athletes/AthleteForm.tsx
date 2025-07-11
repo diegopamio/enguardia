@@ -1,60 +1,22 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import { apiFetch, notify } from '@/lib/notifications';
+import React, { useState } from 'react';
+import { Session } from 'next-auth';
 import { getCountryName } from '@/lib/countries';
 import ReactFlagsSelect from 'react-flags-select';
 import ClubSelect from '../shared/ClubSelect';
-
-interface Club {
-  id: string;
-  name: string;
-  city?: string;
-  country: string;
-  imageUrl?: string;
-  organizations: Array<{
-    organization: {
-      id: string;
-      name: string;
-    };
-  }>;
-}
-
-interface Athlete {
-  id: string;
-  firstName: string;
-  lastName: string;
-  nationality?: string;
-  fieId?: string;
-  dateOfBirth?: string;
-  isActive: boolean;
-  weapons: Array<{ weapon: 'EPEE' | 'FOIL' | 'SABRE' }>;
-  organizations: Array<{
-    organization: { id: string; name: string };
-    membershipType: string;
-    status: string;
-  }>;
-  clubs?: Array<{
-    club: { id: string; name: string; city?: string };
-    membershipType: string;
-    status: string;
-    isPrimary: boolean;
-  }>;
-}
+import { useClubs } from '@/hooks/useClubs';
+import { useCreateAthlete, useUpdateAthlete, type Athlete } from '@/hooks/useAthletes';
+import { notify } from '@/lib/notifications';
 
 interface AthleteFormProps {
-  athlete?: Athlete;
-  onSave: (athlete: Athlete) => void;
+  athlete?: Athlete | null;
+  onSuccess: () => void;
   onCancel: () => void;
+  session: Session | null;
 }
 
-export default function AthleteForm({ athlete, onSave, onCancel }: AthleteFormProps) {
-  const { data: session } = useSession();
-  const [loading, setLoading] = useState(false);
-  const [clubs, setClubs] = useState<Club[]>([]);
-  const [loadingClubs, setLoadingClubs] = useState(true);
-  
+export default function AthleteForm({ athlete, onSuccess, onCancel, session }: AthleteFormProps) {
   const [formData, setFormData] = useState({
     firstName: athlete?.firstName || '',
     lastName: athlete?.lastName || '',
@@ -62,35 +24,21 @@ export default function AthleteForm({ athlete, onSave, onCancel }: AthleteFormPr
     fieId: athlete?.fieId || '',
     dateOfBirth: athlete?.dateOfBirth || '',
     isActive: athlete?.isActive ?? true,
-    weapons: athlete?.weapons?.map(w => w.weapon) || [],
+    weapons: athlete?.weapons?.map(w => w.weapon) || [] as ('EPEE' | 'FOIL' | 'SABRE')[],
     organizationId: session?.user?.organizationId || '',
     clubId: athlete?.clubs?.find(c => c.isPrimary)?.club.id || '', // Primary club
   });
 
-  // Fetch available clubs
-  const fetchClubs = async () => {
-    try {
-      setLoadingClubs(true);
-      const response = await apiFetch('/api/clubs');
-      const data = await response.json();
-      setClubs(data?.clubs || []);
-    } catch (error) {
-      console.error('Failed to fetch clubs:', error);
-      setClubs([]);
-    } finally {
-      setLoadingClubs(false);
-    }
-  };
+  // TanStack Query hooks
+  const { data: clubsData, isLoading: loadingClubs } = useClubs();
+  const createAthleteMutation = useCreateAthlete();
+  const updateAthleteMutation = useUpdateAthlete();
 
-  useEffect(() => {
-    if (session) {
-      fetchClubs();
-    }
-  }, [session]);
+  const clubs = clubsData?.clubs || [];
+  const isLoading = createAthleteMutation.isPending || updateAthleteMutation.isPending;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
 
     try {
       if (!formData.firstName.trim() || !formData.lastName.trim()) {
@@ -110,35 +58,21 @@ export default function AthleteForm({ athlete, onSave, onCancel }: AthleteFormPr
         clubId: formData.clubId || null,
       };
 
-      let response;
       if (athlete?.id) {
         // Update existing athlete
-        response = await apiFetch(`/api/athletes/${athlete.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(athleteData),
+        await updateAthleteMutation.mutateAsync({
+          id: athlete.id,
+          ...athleteData,
         });
       } else {
         // Create new athlete
-        response = await apiFetch('/api/athletes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(athleteData),
-        });
+        await createAthleteMutation.mutateAsync(athleteData);
       }
 
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to save athlete');
-      }
-
-      notify.success(athlete?.id ? 'Athlete updated successfully' : 'Athlete created successfully');
-      onSave(result.athlete);
+      onSuccess();
     } catch (error) {
-      notify.error(error instanceof Error ? error.message : 'Failed to save athlete');
-    } finally {
-      setLoading(false);
+      // Error handling is done in the mutation hooks
+      console.error('Form submission error:', error);
     }
   };
 
@@ -151,7 +85,7 @@ export default function AthleteForm({ athlete, onSave, onCancel }: AthleteFormPr
     }));
   };
 
-  const getClubDisplayName = (club: Club) => {
+  const getClubDisplayName = (club: any) => {
     const location = club.city ? `${club.city}, ${getCountryName(club.country)}` : getCountryName(club.country);
     return `${club.name} (${location})`;
   };
@@ -163,7 +97,7 @@ export default function AthleteForm({ athlete, onSave, onCancel }: AthleteFormPr
     }
     if (session?.user?.role === 'ORGANIZATION_ADMIN' && session.user.organizationId) {
       // Organization admins can see clubs affiliated with their organization
-      return club.organizations.some(org => org.organization.id === session.user.organizationId);
+      return club.organizations.some((org: any) => org.organization.id === session.user.organizationId);
     }
     return true; // Default to showing all clubs
   });
@@ -216,7 +150,7 @@ export default function AthleteForm({ athlete, onSave, onCancel }: AthleteFormPr
               </div>
             </div>
 
-            {/* Additional Information */}
+            {/* Nationality and FIE ID */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -226,9 +160,9 @@ export default function AthleteForm({ athlete, onSave, onCancel }: AthleteFormPr
                   selected={formData.nationality}
                   onSelect={(code) => setFormData({ ...formData, nationality: code })}
                   searchable
-                  placeholder="Select Nationality"
+                  searchPlaceholder="Search for a country..."
+                  placeholder="Select nationality"
                   className="w-full"
-                  selectButtonClassName="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-left"
                 />
               </div>
 
@@ -241,7 +175,7 @@ export default function AthleteForm({ athlete, onSave, onCancel }: AthleteFormPr
                   value={formData.fieId}
                   onChange={(e) => setFormData({ ...formData, fieId: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="FIE identification number"
+                  placeholder="FIE ID (if any)"
                 />
               </div>
             </div>
@@ -259,27 +193,12 @@ export default function AthleteForm({ athlete, onSave, onCancel }: AthleteFormPr
               />
             </div>
 
-            {/* Club Selection */}
-            <div>
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Primary Club
-                </label>
-                <ClubSelect
-                  clubs={filteredClubs}
-                  value={formData.clubId}
-                  onChange={(clubId) => setFormData({ ...formData, clubId: clubId || '' })}
-                  placeholder="Search and select a club..."
-                />
-              </div>
-            </div>
-
             {/* Weapons */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Weapons
+                Weapon Specializations
               </label>
-              <div className="space-y-2">
+              <div className="flex gap-4">
                 {(['EPEE', 'FOIL', 'SABRE'] as const).map((weapon) => (
                   <label key={weapon} className="flex items-center">
                     <input
@@ -288,13 +207,33 @@ export default function AthleteForm({ athlete, onSave, onCancel }: AthleteFormPr
                       onChange={() => handleWeaponChange(weapon)}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
-                    <span className="ml-2 text-sm text-gray-700">{weapon}</span>
+                    <span className="ml-2 text-sm text-gray-700">
+                      {weapon === 'EPEE' ? 'Épée' : weapon.charAt(0) + weapon.slice(1).toLowerCase()}
+                    </span>
                   </label>
                 ))}
               </div>
             </div>
 
-            {/* Status */}
+            {/* Club Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Primary Club
+              </label>
+              <ClubSelect
+                clubs={filteredClubs}
+                value={formData.clubId}
+                onChange={(clubId) => setFormData({ ...formData, clubId: clubId || '' })}
+                placeholder="Select a club..."
+                isDisabled={loadingClubs}
+                isClearable={true}
+              />
+              {loadingClubs && (
+                <p className="text-sm text-gray-500 mt-1">Loading clubs...</p>
+              )}
+            </div>
+
+            {/* Active Status */}
             <div>
               <label className="flex items-center">
                 <input
@@ -303,26 +242,28 @@ export default function AthleteForm({ athlete, onSave, onCancel }: AthleteFormPr
                   onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="ml-2 text-sm text-gray-700">Active athlete</span>
+                <span className="ml-2 text-sm text-gray-700">
+                  Active Athlete
+                </span>
               </label>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex justify-end space-x-3 pt-6 border-t">
+            {/* Form Actions */}
+            <div className="flex justify-end gap-3 pt-6 border-t">
               <button
                 type="button"
                 onClick={onCancel}
-                className="px-6 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                disabled={loading}
+                disabled={isLoading}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg transition-colors"
-                disabled={loading}
+                disabled={isLoading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Saving...' : (athlete?.id ? 'Update Athlete' : 'Create Athlete')}
+                {isLoading ? 'Saving...' : (athlete?.id ? 'Update Athlete' : 'Create Athlete')}
               </button>
             </div>
           </form>

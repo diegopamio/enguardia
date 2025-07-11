@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import SessionProvider from "@/components/SessionProvider";
+import QueryProvider from "@/components/QueryProvider";
 import Header from "@/components/Header";
 import { Toaster } from "react-hot-toast";
 import ClientOnly from "@/components/ClientOnly";
@@ -32,12 +33,14 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <SessionProvider>
-          <ClientOnly>
-            <Header />
-          </ClientOnly>
-          <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-            {children}
-          </main>
+          <QueryProvider>
+            <ClientOnly>
+              <Header />
+            </ClientOnly>
+            <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+              {children}
+            </main>
+          </QueryProvider>
         </SessionProvider>
         <Toaster 
           position="top-right"

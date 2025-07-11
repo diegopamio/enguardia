@@ -1,185 +1,103 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Session } from 'next-auth';
-import { apiFetch } from '@/lib/notifications';
 import { getCountryName } from '@/lib/countries';
 import AthleteForm from './AthleteForm';
-import { UserRole } from '@prisma/client'; // Use the prisma-generated type
+import { UserRole } from '@prisma/client';
 import AthleteList from './AthleteList';
 import AthleteImport from './AthleteImport';
+import AffiliationManager from './AffiliationManager';
 import ClubSelect from '@/components/shared/ClubSelect';
 import ConfirmationModal from '@/components/shared/ConfirmationModal';
-
-interface Athlete {
-  id: string;
-  firstName: string;
-  lastName: string;
-  nationality?: string;
-  fieId?: string;
-  dateOfBirth?: string;
-  isActive: boolean;
-  weapons: Array<{ weapon: 'EPEE' | 'FOIL' | 'SABRE' }>;
-  organizations: Array<{
-    organization: { id: string; name: string };
-    membershipType: string;
-    status: string;
-  }>;
-  globalRankings: Array<{
-    weapon: string;
-    rank: number;
-    season: string;
-  }>;
-  _count: {
-    competitionRegistrations: number;
-  };
-}
-
-interface AthletesResponse {
-  athletes: Athlete[];
-  pagination: {
-    total: number;
-    limit: number;
-    offset: number;
-    hasMore: boolean;
-  };
-}
-
-const defaultPagination = {
-  total: 0,
-  limit: 50,
-  offset: 0,
-  hasMore: false,
-};
+import { useAthletes, useDeleteAthlete, type Athlete } from '@/hooks/useAthletes';
+import { useClubs } from '@/hooks/useClubs';
 
 interface AthleteManagementProps {
   session: Session | null;
 }
 
 export default function AthleteManagement({ session }: AthleteManagementProps) {
-  const [athletes, setAthletes] = useState<Athlete[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Form and modal states
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [selectedAthlete, setSelectedAthlete] = useState<Athlete | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
   
   // Confirmation modal state
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [athleteToDelete, setAthleteToDelete] = useState<Athlete | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [filterWeapon, setFilterWeapon] = useState<string>('');
   const [filterOrganization, setFilterOrganization] = useState<string>('');
-  const [pagination, setPagination] = useState(defaultPagination);
-  const [clubs, setClubs] = useState<any[]>([]);
-  const [loadingClubs, setLoadingClubs] = useState(true);
   const [filterClub, setFilterClub] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(0);
+  const [allAthletes, setAllAthletes] = useState<Athlete[]>([]);
+  const limit = 50;
+
+  // Bulk selection state
+  const [selectedAthletes, setSelectedAthletes] = useState<Athlete[]>([]);
+  const [showAffiliationManager, setShowAffiliationManager] = useState(false);
+
+  // TanStack Query hooks
+  const athleteFilters = {
+    search: searchTerm.trim() || undefined,
+    weapon: filterWeapon || undefined,
+    organizationId: filterOrganization || undefined,
+    clubId: filterClub || undefined,
+    limit,
+    offset: currentPage * limit,
+  };
+
+  const { data: athletesData, isLoading: loading, error, refetch } = useAthletes(athleteFilters);
+  const { data: clubsData, isLoading: loadingClubs } = useClubs();
+  const deleteAthleteMutation = useDeleteAthlete();
+
+  const currentPageAthletes = athletesData?.athletes || [];
+  const pagination = athletesData?.pagination || { total: 0, limit, offset: 0, hasMore: false };
+  const clubs = clubsData?.clubs || [];
+
+  // Update accumulated athletes when new page data arrives
+  useEffect(() => {
+    if (currentPage === 0) {
+      // First page or filter change - replace all athletes
+      setAllAthletes(currentPageAthletes);
+      setSelectedAthletes([]); // Clear selections on filter change
+    } else if (currentPageAthletes.length > 0) {
+      // Additional pages - append to existing athletes
+      setAllAthletes(prev => [...prev, ...currentPageAthletes]);
+    }
+  }, [currentPageAthletes, currentPage]);
 
   const canManageAthletes =
     session?.user?.role === UserRole.SYSTEM_ADMIN ||
     session?.user?.role === UserRole.ORGANIZATION_ADMIN;
 
-  const fetchClubsForFilter = async () => {
-    setLoadingClubs(true);
-    try {
-      const response = await apiFetch('/api/clubs');
-      const data = await response.json();
-      setClubs(data.clubs || []);
-    } catch (error) {
-      console.error('Failed to fetch clubs for filter:', error);
-      setClubs([]);
-    } finally {
-      setLoadingClubs(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchClubsForFilter();
-  }, []);
-
-  const fetchAthletes = useCallback(async (customOffset?: number) => {
-    if (!session?.user) return;
-    
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Use safe defaults if pagination is not initialized
-      const currentLimit = pagination?.limit || 50;
-      const currentOffset = customOffset !== undefined ? customOffset : (pagination?.offset || 0);
-      
-      const params = new URLSearchParams({
-        limit: currentLimit.toString(),
-        offset: currentOffset.toString(),
-      });
-
-      if (searchTerm.trim()) {
-        params.append('search', searchTerm.trim());
-      }
-      if (filterWeapon) {
-        params.append('weapon', filterWeapon);
-      }
-      if (filterOrganization) {
-        params.append('organizationId', filterOrganization);
-      }
-      if (filterClub) {
-        params.append('clubId', filterClub);
-      }
-
-      const response = await apiFetch(`/api/athletes?${params}`);
-      const data = await response.json() as AthletesResponse;
-      
-      if (currentOffset === 0) {
-        setAthletes(data.athletes);
-      } else {
-        setAthletes(prev => [...prev, ...data.athletes]);
-      }
-      
-      setPagination(data.pagination);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch athletes');
-    } finally {
-      setLoading(false);
-    }
-  }, [session, searchTerm, filterWeapon, filterOrganization, filterClub]);
-
-  useEffect(() => {
-    if (session) { // Check for session before fetching
-      fetchAthletes(0);
-    } else {
-      setLoading(false); // Stop loading if no session
-    }
-  }, [session, searchTerm, filterWeapon, filterOrganization, filterClub, refreshKey]);
-
   const handleSearch = (newSearchTerm: string) => {
     setSearchTerm(newSearchTerm);
-    setPagination(prev => ({ ...prev, offset: 0 }));
+    setCurrentPage(0);
   };
 
   const handleFilterChange = (weapon: string, organization: string) => {
     setFilterWeapon(weapon);
     setFilterOrganization(organization);
-    setPagination(prev => ({ ...prev, offset: 0 }));
+    setCurrentPage(0);
   };
 
   const handleClubFilterChange = (clubId: string | null) => {
     setFilterClub(clubId || '');
-    setPagination(prev => ({ ...prev, offset: 0 }));
+    setCurrentPage(0);
   };
 
   const handleLoadMore = () => {
-    const newOffset = (pagination?.offset || 0) + (pagination?.limit || 50);
-    setPagination(prev => ({ ...prev, offset: newOffset }));
-    fetchAthletes(newOffset);
+    setCurrentPage(prev => prev + 1);
   };
 
   const handleRefresh = useCallback(() => {
-    setRefreshKey(prev => prev + 1);
-  }, []);
+    setCurrentPage(0);
+    refetch();
+  }, [refetch]);
 
   const handleEdit = useCallback((athlete: Athlete) => {
     setSelectedAthlete(athlete);
@@ -191,31 +109,61 @@ export default function AthleteManagement({ session }: AthleteManagementProps) {
     setShowDeleteConfirmation(true);
   }, []);
 
+  // Bulk selection handlers
+  const handleSelectAthlete = useCallback((athlete: Athlete) => {
+    setSelectedAthletes(prev => {
+      const isSelected = prev.some(a => a.id === athlete.id);
+      if (isSelected) {
+        return prev.filter(a => a.id !== athlete.id);
+      } else {
+        return [...prev, athlete];
+      }
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    if (selectedAthletes.length === allAthletes.length) {
+      setSelectedAthletes([]);
+    } else {
+      setSelectedAthletes([...allAthletes]);
+    }
+  }, [allAthletes, selectedAthletes]);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedAthletes([]);
+  }, []);
+
+  const handleShowAffiliationManager = useCallback(() => {
+    if (selectedAthletes.length === 0) {
+      console.warn('Please select at least one athlete to manage affiliations.');
+      return;
+    }
+    setShowAffiliationManager(true);
+  }, [selectedAthletes]);
+
+  const handleAffiliationSuccess = useCallback(() => {
+    setSelectedAthletes([]);
+    setShowAffiliationManager(false);
+    // TanStack Query will automatically invalidate and refetch
+  }, []);
+
   const confirmDelete = useCallback(async () => {
     if (!athleteToDelete) return;
 
-    setIsDeleting(true);
     try {
-      const response = await apiFetch(`/api/athletes/${athleteToDelete.id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete athlete');
-      }
-
-      // Refresh the list after successful deletion
-      handleRefresh();
-      
+      await deleteAthleteMutation.mutateAsync(athleteToDelete.id);
       // Close modal and reset state
       setShowDeleteConfirmation(false);
       setAthleteToDelete(null);
+      // Reset selections if deleted athlete was selected
+      setSelectedAthletes(prev => prev.filter(a => a.id !== athleteToDelete.id));
+      // Remove from local state immediately for better UX
+      setAllAthletes(prev => prev.filter(a => a.id !== athleteToDelete.id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete athlete');
-    } finally {
-      setIsDeleting(false);
+      // Error handling is done in the mutation hook
+      console.error('Failed to delete athlete:', err);
     }
-  }, [athleteToDelete, handleRefresh]);
+  }, [athleteToDelete, deleteAthleteMutation]);
 
   const cancelDelete = useCallback(() => {
     setShowDeleteConfirmation(false);
@@ -225,16 +173,35 @@ export default function AthleteManagement({ session }: AthleteManagementProps) {
   const handleCreateSuccess = useCallback(() => {
     setShowForm(false);
     setSelectedAthlete(null);
-    handleRefresh();
-  }, [handleRefresh]);
+    // Reset to first page to see the new athlete
+    setCurrentPage(0);
+  }, []);
 
   const handleImportSuccess = useCallback(() => {
-    handleRefresh();
     setShowImport(false);
-  }, [handleRefresh]);
+    // Reset to first page to see imported athletes
+    setCurrentPage(0);
+  }, []);
 
   if (!session) {
     return <div className="p-4 text-center">Please sign in to view athletes.</div>;
+  }
+
+  // Handle error state
+  if (error) {
+    return (
+      <div className="p-4 text-center">
+        <div className="text-red-600 mb-4">
+          {error instanceof Error ? error.message : 'Failed to fetch athletes'}
+        </div>
+        <button
+          onClick={handleRefresh}
+          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+        >
+          Try Again
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -243,7 +210,7 @@ export default function AthleteManagement({ session }: AthleteManagementProps) {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-4">
           <div className="text-sm text-gray-600">
-            Total: {pagination?.total || 0} athletes
+            Total: {pagination.total} athletes
           </div>
           <button
             onClick={handleRefresh}
@@ -343,7 +310,7 @@ export default function AthleteManagement({ session }: AthleteManagementProps) {
               setFilterWeapon('');
               setFilterOrganization('');
               setFilterClub('');
-              setPagination(prev => ({ ...prev, offset: 0 }));
+              setCurrentPage(0);
             }}
             className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors text-sm"
           >
@@ -352,55 +319,109 @@ export default function AthleteManagement({ session }: AthleteManagementProps) {
         </div>
       </div>
 
-      {/* Error Display */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
-          <div className="text-red-800">{error}</div>
+      {/* Bulk Actions */}
+      {canManageAthletes && allAthletes.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border p-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-600">
+                {selectedAthletes.length} of {allAthletes.length} selected
+              </div>
+              <button
+                onClick={handleSelectAll}
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+              >
+                {selectedAthletes.length === allAthletes.length ? 'Clear All' : 'Select All'}
+              </button>
+              {selectedAthletes.length > 0 && (
+                <button
+                  onClick={handleClearSelection}
+                  className="text-gray-600 hover:text-gray-800 text-sm font-medium"
+                >
+                  Clear Selection
+                </button>
+              )}
+            </div>
+            
+            {selectedAthletes.length > 0 && (
+              <button
+                onClick={handleShowAffiliationManager}
+                className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors text-sm"
+              >
+                Manage Affiliations ({selectedAthletes.length})
+              </button>
+            )}
+          </div>
         </div>
       )}
 
       {/* Athletes List */}
       <AthleteList
-        athletes={athletes}
-        loading={loading}
+        athletes={allAthletes}
+        loading={loading && currentPage === 0}
         onEdit={canManageAthletes ? handleEdit : undefined}
-        onLoadMore={pagination?.hasMore ? handleLoadMore : undefined}
-        loadingMore={loading && (pagination?.offset || 0) > 0}
         onDelete={canManageAthletes ? handleDelete : undefined}
+        onSelect={canManageAthletes ? handleSelectAthlete : undefined}
+        selectedAthletes={selectedAthletes}
+        session={session}
       />
 
-      {/* Create/Edit Modal */}
+      {/* Load More Button */}
+      {pagination.hasMore && (
+        <div className="text-center">
+          <button
+            onClick={handleLoadMore}
+            disabled={loading}
+            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {loading ? 'Loading...' : 'Load More Athletes'}
+          </button>
+        </div>
+      )}
+
+      {/* Modals */}
       {showForm && (
         <AthleteForm
-          athlete={selectedAthlete || undefined}
+          athlete={selectedAthlete}
+          onSuccess={handleCreateSuccess}
           onCancel={() => {
             setShowForm(false);
             setSelectedAthlete(null);
           }}
-          onSave={handleCreateSuccess}
+          session={session}
         />
       )}
 
-      {/* Import Modal */}
       {showImport && (
         <AthleteImport
-          onClose={() => setShowImport(false)}
           onSuccess={handleImportSuccess}
+          onCancel={() => setShowImport(false)}
+          session={session}
         />
       )}
 
-      {/* Delete Confirmation Modal */}
-      <ConfirmationModal
-        isOpen={showDeleteConfirmation}
-        onClose={cancelDelete}
-        onConfirm={confirmDelete}
-        title="Delete Athlete"
-        message={athleteToDelete ? `Are you sure you want to delete ${athleteToDelete.firstName} ${athleteToDelete.lastName}? This action cannot be undone.` : ''}
-        confirmText="Delete"
-        cancelText="Cancel"
-        type="danger"
-        loading={isDeleting}
-      />
+      {showAffiliationManager && (
+        <AffiliationManager
+          athletes={selectedAthletes}
+          onSuccess={handleAffiliationSuccess}
+          onCancel={() => setShowAffiliationManager(false)}
+          session={session}
+        />
+      )}
+
+      {showDeleteConfirmation && athleteToDelete && (
+        <ConfirmationModal
+          isOpen={showDeleteConfirmation}
+          title="Delete Athlete"
+          message={`Are you sure you want to delete ${athleteToDelete.firstName} ${athleteToDelete.lastName}? This action cannot be undone.`}
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+          onConfirm={confirmDelete}
+          onCancel={cancelDelete}
+          isLoading={deleteAthleteMutation.isPending}
+          variant="danger"
+        />
+      )}
     </div>
   );
 } 

@@ -1,0 +1,61 @@
+# Task ID: 20
+# Title: Polish UI for Consistency and Enhanced User Experience
+# Status: pending
+# Dependencies: 5, 6, 7, 13
+# Priority: high
+# Description: Refine and unify the user interface across all components, ensuring consistent styling, improved visual elements, and a seamless user experience for dropdowns, cards, forms, navigation, and weapon icons.
+# Details:
+1. Audit all existing UI components (dropdowns, cards, forms, navigation, weapon icons) for inconsistencies in styling, spacing, and visual hierarchy.
+2. Establish or refine a design system, including a color palette, typography, spacing, and component variants, referencing modern UI libraries (e.g., MUI) for best practices and accessibility standards[2][4].
+3. Refactor components to use functional patterns and modular CSS-in-JS or utility-first CSS frameworks for maintainability and scalability[1][3].
+4. Enhance visual elements by updating icons (including weapon icons), adding subtle animations or transitions, and improving responsiveness for all screen sizes.
+5. Ensure all components are accessible, supporting keyboard navigation, ARIA attributes, and screen reader compatibility[2].
+6. Integrate improved error and loading states for forms and interactive elements, following modern UX guidelines.
+7. Collaborate with stakeholders to review and iterate on UI changes, gathering feedback for further refinement.
+8. Document the updated design system and component usage guidelines for future development.
+
+# Test Strategy:
+- Manually review all UI components for visual consistency, alignment, and adherence to the design system across different browsers and devices.
+- Use automated accessibility testing tools (e.g., axe, Lighthouse) to verify ARIA support, keyboard navigation, and screen reader compatibility.
+- Conduct user testing sessions to gather feedback on usability and visual appeal.
+- Validate responsiveness and layout integrity on various screen sizes.
+- Ensure all interactive elements provide clear feedback and error handling.
+- Review code for maintainability, modularity, and adherence to functional component best practices.
+
+# Subtasks:
+## 1. Homogenize Dropdown Chevrons [pending]
+### Dependencies: None
+### Description: Ensure all dropdown components use consistent chevron icons with unified styling and smooth animations across the application.
+### Details:
+Audit all dropdowns for icon inconsistencies, select or design a standard chevron SVG, and implement it with consistent color, size, and animation for open/close states.
+
+## 2. Add Country Flags to Club Cards [pending]
+### Dependencies: None
+### Description: Display the appropriate country flag emoji on each club card to visually indicate the club's country.
+### Details:
+Update the club card component to include a country flag emoji based on the club's country data, ensuring proper alignment and sizing within the card layout.
+
+## 3. Implement Athlete Profile Picture Upload and Display [pending]
+### Dependencies: None
+### Description: Enable image upload functionality for athlete profile pictures and display these images in both the athlete creation form and athlete cards.
+### Details:
+Add an image upload field to the athlete creation form, handle image storage, and update athlete cards to show the uploaded profile picture with fallback handling for missing images.
+
+## 4. Add Breadcrumb Navigation Component [pending]
+### Dependencies: None
+### Description: Implement a breadcrumb navigation component that displays the current navigation path for improved orientation and usability.
+### Details:
+Design and integrate a breadcrumb component that dynamically reflects the user's current location within the app's hierarchy, ensuring accessibility and responsiveness.
+
+## 5. Highlight Active Menu Item in Header [pending]
+### Dependencies: None
+### Description: Visually indicate the currently active page or section in the main navigation header to improve user orientation.
+### Details:
+Update the header navigation to apply a distinct style (e.g., color, underline, or background) to the active menu item, ensuring consistency with the overall design system.
+
+## 6. Integrate SVG Icons for Fencing Weapons [pending]
+### Dependencies: None
+### Description: Replace text-based weapon indicators with proper SVG icons for epee, foil, and sabre throughout the UI.
+### Details:
+Source or design SVG icons for each weapon type and update relevant components to display these icons with consistent sizing and alignment.
+

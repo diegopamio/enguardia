@@ -1,0 +1,16 @@
+# Task ID: 10
+# Title: Develop Direct Elimination Bracket System
+# Status: pending
+# Dependencies: 9
+# Priority: high
+# Description: Create functionality for generating, displaying, and managing direct elimination brackets.
+# Details:
+1. Implement algorithm for seeding and generating DE brackets (32/64/128 with byes).
+2. Create API routes for bracket generation and management.
+3. Design and implement interactive visual bracket UI using a library like react-bracket.
+4. Add functionality to assign piste/time/referee per bout.
+5. Implement score entry for DE bouts with automatic winner advancement.
+6. Integrate with overall rankings for initial seeding.
+
+# Test Strategy:
+Unit test bracket generation algorithm. Test bracket UI for different sizes. Verify correct advancement of winners and handling of byes.

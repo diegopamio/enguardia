@@ -1,0 +1,131 @@
+# Task ID: 19
+# Title: Redesign Data Model for Tournament Structure
+# Status: done
+# Dependencies: 2, 4, 9
+# Priority: high
+# Description: Convert the current single Event-based system to a hierarchical Tournament > Competition > Phase architecture that matches real fencing tournament organization.
+# Details:
+1. Analyze the current Event model and identify all relationships and dependencies.
+2. Design new database schema with the following entities:
+   - Tournament: Container for the overall event (name, dates, location, organizer)
+   - Competition: Specific weapon+category combinations (épée senior men, foil junior women, etc.)
+   - Phase: Different stages within a competition (poules, direct elimination, classification)
+3. Create Prisma schema migrations to:
+   - Create new tables for Tournament, Competition, and Phase
+   - Establish proper relationships between entities
+   - Migrate existing Event data to the new structure
+   - Set up appropriate indexes for performance
+4. Update API layer:
+   - Modify existing endpoints to work with new data structure
+   - Create new endpoints for Tournament and Competition management
+   - Ensure backward compatibility where possible
+   - Update validation schemas for all affected routes
+5. Refactor frontend components:
+   - Update forms for creating/editing tournaments and competitions
+   - Modify navigation to reflect the hierarchical structure
+   - Adapt existing views to work with the new data model
+   - Create new UI components for tournament/competition selection
+6. Update TypeScript types and interfaces throughout the application
+7. Ensure ranking calculation (Task 9) works with the new structure
+8. Verify real-time updates (Task 14) function correctly with the new model
+9. Update documentation:
+   - API documentation
+   - Database schema documentation
+   - Frontend component documentation
+
+# Test Strategy:
+1. Create comprehensive unit tests for new database models and relationships
+2. Develop migration tests to verify data integrity during the transition
+3. Test all API endpoints with the new data structure:
+   - Create/read/update/delete operations for Tournaments
+   - Create/read/update/delete operations for Competitions
+   - Create/read/update/delete operations for Phases
+4. Verify that existing functionality works with the new data model:
+   - Athlete registration
+   - Poule generation and scoring
+   - Direct elimination brackets
+   - Ranking calculations
+5. Perform end-to-end testing of complete tournament workflows
+6. Test edge cases:
+   - Tournaments with multiple competitions
+   - Competitions with different phase structures
+   - Migration of existing event data
+7. Verify performance with large datasets (300+ fencers, multiple competitions)
+8. Conduct user acceptance testing with tournament organizers
+
+# Subtasks:
+## 1. Database Schema Migration [done]
+### Dependencies: None
+### Description: Redesign schema from Event-based to Tournament > Competition > Phase architecture
+### Details:
+- Created new tables: Tournament, Competition, Phase, TournamentTranslation, CompetitionTranslation, PhaseTranslation
+- Updated related tables (Registrations, Poules, Brackets, etc.) to reference Competitions instead of Events
+- Applied migration successfully with backup of original schema
+
+## 2. Validation Schema Updates [done]
+### Dependencies: None
+### Description: Update validation schemas for new data structure
+### Details:
+- Updated validation.ts with new Tournament/Competition/Phase validation schemas
+- Added proper authorization validators for new entities
+- Maintained backward compatibility with legacy Event schemas
+- Added business rule validations (duplicate weapon+category prevention, etc.)
+
+## 3. New API Routes Creation [done]
+### Dependencies: None
+### Description: Create new API endpoints for Tournament and Competition management
+### Details:
+- Created /api/tournaments route with GET (list) and POST (create) endpoints
+- Created /api/tournaments/[id] route with GET, PUT, DELETE operations
+- Created /api/competitions route with GET (list) and POST (create) endpoints
+- Created /api/competitions/[id] route with GET, PUT, DELETE operations
+- All routes include proper authentication, authorization, and business rule validation
+- Implemented active tournament logic (only one active per organization)
+- Added comprehensive error handling and data validation
+
+## 4. Business Logic Implementation [done]
+### Dependencies: None
+### Description: Implement core business logic for the new tournament structure
+### Details:
+- Tournament can contain multiple competitions (weapon+category combinations)
+- Competitions are scoped to specific tournaments
+- Phases represent competition stages (Poules, Direct Elimination, Classification)
+- Proper access control based on organization membership and public visibility
+- Prevention of duplicate weapon+category combinations within same tournament
+
+## 5. Update Existing Events API [done]
+### Dependencies: None
+### Description: Modify existing Events API endpoints for backward compatibility
+### Details:
+- Update Events endpoints to work with new Tournament/Competition structure
+- Ensure existing client applications continue to function
+- Add deprecation notices where appropriate
+- Create mapping layer between old and new data models
+
+## 6. Create Tournament/Competition Frontend Components [done]
+### Dependencies: None
+### Description: Develop new UI components for tournament management
+### Details:
+- Create Tournament creation/editing forms
+- Develop Competition management interface
+- Build Phase configuration components
+- Implement tournament dashboard with competition overview
+
+## 7. Update Existing Event Components [done]
+### Dependencies: None
+### Description: Adapt existing UI components to work with new data architecture
+### Details:
+- Modify registration components to work with Competitions
+- Update poule and bracket views to reference new data structure
+- Adapt navigation to reflect hierarchical tournament structure
+- Ensure all existing functionality works with new model
+
+## 8. Update Documentation and API Reference [done]
+### Dependencies: None
+### Description: Create comprehensive documentation for the new architecture
+### Details:
+- Document new database schema and relationships
+- Update API reference with new endpoints
+- Create migration guide for existing integrations
+- Document business rules and validation requirements
+

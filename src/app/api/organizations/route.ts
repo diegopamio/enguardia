@@ -1,61 +1,67 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
-import { PrismaClient } from '@prisma/client'
-import { TranslatedEntityService, getPreferredLocale } from '@/lib/i18n/translation-helpers'
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient()
-
-// GET /api/organizations - Get all organizations with translations
-async function getOrganizations(req: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  // Get preferred locale from Accept-Language header
-  const acceptLanguage = req.headers.get('Accept-Language') || undefined
-  const locale = getPreferredLocale(acceptLanguage)
-
+// GET /api/organizations - List all organizations
+export async function GET(request: NextRequest) {
   try {
-    const translationService = new TranslatedEntityService(prisma)
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // System admins can see all organizations, others see only their own + public ones
+    let whereClause = {};
     
-    // System admins can see all organizations
     if (session.user.role === 'SYSTEM_ADMIN') {
-      const organizations = await translationService.getOrganizationsWithTranslations(locale)
-      return NextResponse.json({
-        organizations,
-        locale,
-        message: `Organizations loaded in ${locale.toUpperCase()}`
-      })
+      // System admins see all organizations
+      whereClause = { isActive: true };
+    } else if (session.user.organizationId) {
+      // Others see their own organization + public ones (if we implement that)
+      whereClause = {
+        isActive: true,
+        // For now, just show all active organizations
+        // In future could filter based on organization visibility settings
+      };
+    } else {
+      // Users without organization see limited set
+      whereClause = { isActive: true };
     }
 
-    // Other users only see their own organization
-    if (session.user.organizationId) {
-      const organization = await translationService.getOrganizationWithTranslation(
-        session.user.organizationId,
-        locale
-      )
-      
-      if (!organization) {
-        return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
-      }
+    const organizations = await prisma.organization.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        name: true,
+        displayName: true,
+        description: true,
+        city: true,
+        country: true,
+        website: true,
+        _count: {
+          select: {
+            users: { where: { isActive: true } },
+            athleteOrganizations: { where: { status: 'ACTIVE' } },
+            clubs: { where: { status: 'ACTIVE' } },
+          },
+        },
+      },
+      orderBy: [
+        { name: 'asc' },
+      ],
+    });
 
-      return NextResponse.json({
-        organizations: [organization],
-        locale,
-        message: `Organization loaded in ${locale.toUpperCase()}`
-      })
-    }
+    return NextResponse.json({
+      organizations,
+      total: organizations.length,
+    });
 
-    return NextResponse.json({ organizations: [], locale })
   } catch (error) {
-    console.error('Error fetching organizations:', error)
+    console.error('Error fetching organizations:', error);
     return NextResponse.json(
       { error: 'Failed to fetch organizations' },
       { status: 500 }
-    )
+    );
   }
-}
-
-export { getOrganizations as GET } 
+} 
