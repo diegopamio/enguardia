@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Session } from 'next-auth';
 import { getCountryName } from '@/lib/countries';
 import AthleteForm from './AthleteForm';
@@ -16,6 +16,9 @@ import { useClubs } from '@/hooks/useClubs';
 interface AthleteManagementProps {
   session: Session | null;
 }
+
+// Stable empty array reference to prevent infinite renders
+const EMPTY_ATHLETES: Athlete[] = [];
 
 export default function AthleteManagement({ session }: AthleteManagementProps) {
   // Form and modal states
@@ -54,21 +57,29 @@ export default function AthleteManagement({ session }: AthleteManagementProps) {
   const { data: clubsData, isLoading: loadingClubs } = useClubs();
   const deleteAthleteMutation = useDeleteAthlete();
 
-  const currentPageAthletes = athletesData?.athletes || [];
-  const pagination = athletesData?.pagination || { total: 0, limit, offset: 0, hasMore: false };
-  const clubs = clubsData?.clubs || [];
+  // Use memoized values to prevent reference changes
+  const currentPageAthletes = useMemo(() => athletesData?.athletes || EMPTY_ATHLETES, [athletesData?.athletes]);
+  const pagination = useMemo(() => athletesData?.pagination || { total: 0, limit, offset: 0, hasMore: false }, [athletesData?.pagination, limit]);
+  const clubs = useMemo(() => clubsData?.clubs || [], [clubsData?.clubs]);
 
   // Update accumulated athletes when new page data arrives
   useEffect(() => {
+    // Only update if we actually have new data
+    if (!athletesData || loading) return;
+    
     if (currentPage === 0) {
       // First page or filter change - replace all athletes
       setAllAthletes(currentPageAthletes);
       setSelectedAthletes([]); // Clear selections on filter change
     } else if (currentPageAthletes.length > 0) {
-      // Additional pages - append to existing athletes
-      setAllAthletes(prev => [...prev, ...currentPageAthletes]);
+      // Additional pages - append to existing athletes, but check for duplicates
+      setAllAthletes(prev => {
+        const existingIds = new Set(prev.map(a => a.id));
+        const newAthletes = currentPageAthletes.filter(a => !existingIds.has(a.id));
+        return [...prev, ...newAthletes];
+      });
     }
-  }, [currentPageAthletes, currentPage]);
+  }, [currentPageAthletes, currentPage, athletesData, loading]);
 
   const canManageAthletes =
     session?.user?.role === UserRole.SYSTEM_ADMIN ||
@@ -363,7 +374,7 @@ export default function AthleteManagement({ session }: AthleteManagementProps) {
         onDelete={canManageAthletes ? handleDelete : undefined}
         onSelect={canManageAthletes ? handleSelectAthlete : undefined}
         selectedAthletes={selectedAthletes}
-        session={session}
+        showSelection={canManageAthletes}
       />
 
       {/* Load More Button */}
