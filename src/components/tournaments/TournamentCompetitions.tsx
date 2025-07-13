@@ -6,6 +6,7 @@ import { useRoleCheck } from "@/lib/auth-client"
 import { notify, apiFetch, NotificationError, confirmDelete } from "@/lib/notifications"
 import CompetitionForm from "../competitions/CompetitionForm"
 import CompetitionRoster from "./CompetitionRoster"
+import TournamentFormulaSetup from "./TournamentFormulaSetup"
 
 interface Competition {
   id: string
@@ -47,12 +48,14 @@ export default function TournamentCompetitions({
   const [loading, setLoading] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
   const [viewingRoster, setViewingRoster] = useState<Competition | null>(null)
+  const [configuringFormula, setConfiguringFormula] = useState<Competition | null>(null)
   const [tournamentName, setTournamentName] = useState(propTournamentName || "")
 
   // Role-based access control
   const canCreate = isSystemAdmin() || isOrganizationAdmin()
   const canEdit = isSystemAdmin() || isOrganizationAdmin()
   const canDelete = isSystemAdmin() || isOrganizationAdmin()
+  const canConfigureFormula = isSystemAdmin() || isOrganizationAdmin()
 
   // Handle back navigation
   const handleBack = useCallback(() => {
@@ -71,6 +74,27 @@ export default function TournamentCompetitions({
   // Handle roster view back
   const handleRosterBack = useCallback(() => {
     setViewingRoster(null)
+  }, [])
+
+  // Handle formula setup
+  const handleConfigureFormula = useCallback((competition: Competition) => {
+    if (!canConfigureFormula) {
+      notify.error('You do not have permission to configure tournament formulas')
+      return
+    }
+    setConfiguringFormula(competition)
+  }, [canConfigureFormula])
+
+  // Handle formula setup back
+  const handleFormulaSetupBack = useCallback(() => {
+    setConfiguringFormula(null)
+  }, [])
+
+  // Handle formula setup success
+  const handleFormulaSetupSuccess = useCallback(() => {
+    setConfiguringFormula(null)
+    setRefreshKey(prev => prev + 1)
+    notify.success('Tournament formula configured successfully')
   }, [])
 
   // Fetch competitions for this tournament
@@ -168,67 +192,28 @@ export default function TournamentCompetitions({
     }
   }, [canDelete])
 
-  // Handle form submission
-  const handleFormSubmit = useCallback(async (formData: any) => {
-    const isEditing = !!editingCompetition
-    const loadingToast = notify.loading(
-      isEditing ? 'Updating competition...' : 'Creating competition...'
-    )
+  // Handle form success
+  const handleFormSuccess = useCallback(() => {
+    setShowCreateForm(false)
+    setEditingCompetition(null)
+    setRefreshKey(prev => prev + 1)
+    notify.success(editingCompetition ? 'Competition updated successfully' : 'Competition created successfully')
+  }, [editingCompetition])
 
-    try {
-      const competitionData = {
-        ...formData,
-        tournamentId: tournamentId // Ensure the competition belongs to this tournament
-      }
-      
-      if (isEditing) {
-        await apiFetch(`/api/competitions/${editingCompetition.id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(competitionData)
-        })
-        
-        notify.dismiss(loadingToast as string)
-        notify.success('Competition updated successfully')
-      } else {
-        await apiFetch("/api/competitions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(competitionData)
-        })
-        
-        notify.dismiss(loadingToast as string)
-        notify.success('Competition created successfully')
-      }
-      
-      // Close form and refresh
-      setShowCreateForm(false)
-      setEditingCompetition(null)
-      setRefreshKey(prev => prev + 1)
-      
-    } catch (error) {
-      notify.dismiss(loadingToast as string)
-      console.error("Error submitting competition form:", error)
-      
-      if (error instanceof NotificationError) {
-        notify.error(error.message)
-      } else {
-        notify.error(
-          isEditing ? 'Failed to update competition' : 'Failed to create competition'
-        )
-      }
-    }
-  }, [editingCompetition, tournamentId])
-
-  // Handle form cancellation
+  // Handle form cancel
   const handleFormCancel = useCallback(() => {
     setShowCreateForm(false)
     setEditingCompetition(null)
   }, [])
+
+  // Tournament data for form
+  const tournamentData = [
+    {
+      id: tournamentId,
+      name: tournamentName,
+      organizationId: organizationId || ''
+    }
+  ]
 
   // Weapon icons
   const getWeaponIcon = (weapon: string) => {
@@ -264,11 +249,10 @@ export default function TournamentCompetitions({
         <CompetitionForm
           mode={editingCompetition ? "edit" : "create"}
           competition={editingCompetition}
-          onSubmit={handleFormSubmit}
+          onSuccess={handleFormSuccess}
           onCancel={handleFormCancel}
-          loading={false}
-          organizationId={organizationId}
-          preselectedTournamentId={tournamentId}
+          tournaments={tournamentData}
+          defaultTournamentId={tournamentId}
         />
       </div>
     )
@@ -287,6 +271,19 @@ export default function TournamentCompetitions({
           status: viewingRoster.status
         }}
         onBack={handleRosterBack}
+      />
+    )
+  }
+
+  // Formula setup view
+  if (configuringFormula) {
+    return (
+      <TournamentFormulaSetup
+        tournamentId={tournamentId}
+        tournamentName={tournamentName}
+        competition={configuringFormula}
+        onBack={handleFormulaSetupBack}
+        onSuccess={handleFormulaSetupSuccess}
       />
     )
   }
@@ -393,6 +390,17 @@ export default function TournamentCompetitions({
                       className="text-red-600 hover:text-red-800 text-sm font-medium"
                     >
                       Delete
+                    </button>
+                  )}
+                  {canConfigureFormula && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleConfigureFormula(competition)
+                      }}
+                      className="text-purple-600 hover:text-purple-800 text-sm font-medium"
+                    >
+                      Configure Formula
                     </button>
                   )}
                 </div>

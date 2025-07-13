@@ -5,178 +5,349 @@
 > * Backend will also be **Next.js** (API Routes / Server Actions). No NestJS.
 > * Initial UI languages: **English, Spanish & French**.
 > * Output is fully in **Markdown**.
+> * **Updated**: Full feature parity analysis with Engarde software included.
 
 ---
 
 ## 1 · Vision
 
-Create a modern, responsive web application that reproduces **all major features of the Engarde desktop program** for fencing‑tournament management, while adding cloud advantages:
+Create a modern, responsive web application that achieves **complete feature parity with Engarde desktop software** for fencing tournament management, while adding cloud advantages:
 
 * multi‑user, real‑time access from any device
 * sign‑in via e‑mail / password *or* Google
 * multilingual UI (EN · ES · FR at launch)
-* optional offline operation (PWA) so events keep running even if the venue’s internet fails
+* optional offline operation (PWA) so events keep running even if the venue's internet fails
+* **Advanced formula configuration matching Engarde's complexity**
 
 Target audiences (progressive rollout):
 
 | Audience                      | Phase    | Key Benefit                       |
 | ----------------------------- | -------- | --------------------------------- |
 | Tournament directors / admins | **MVP**  | Full control of event workflow    |
-| Referees                      | Phase 2  | Enter scores from piste on mobile |
-| Athletes & spectators         | Phase 2+ | Live brackets & rankings          |
+| Referees                      | Phase 2  | Enter scores from piste on mobile |
+| Athletes & spectators         | Phase 2+ | Live brackets & rankings          |
 
 ---
 
-## 2 · Goals & Scope
+## 2 · Engarde Feature Parity Analysis
 
-| Goal                                                                  | Included in MVP? | Notes                                  |
-| --------------------------------------------------------------------- | ---------------- | -------------------------------------- |
-| Full tournament workflow – registration → poules → DE → final ranking | ✔️               | Individuals first; team events Phase 3 |
-| Import FIE XML / CSV rosters                                          | ✔️               | Export “nice‑to‑have”, Phase 3         |
-| Auto‑generate poules with perfect club / country separation           | ✔️               | Manual tweaks allowed                  |
-| Auto‑seed & build DE brackets (32/64/128, byes)                       | ✔️               | Classic formula first                  |
-| PDF/print reports: poule sheets, match slips, brackets, rankings      | ✔️               | Same layout as Engarde                 |
-| Role‑based auth (Admin, Referee, Public)                              | ✔️               | Google & e‑mail login                  |
-| Real‑time updates (WebSockets)                                        | Phase 2          | Polling fallback in MVP                |
-| Responsive design                                                     | ✔️               | Mobile‑first for referee views         |
-| Offline / PWA                                                         | Phase 3          | Read‑only cache in MVP                 |
-| **Multilingual UI (EN · ES · FR)**                                    | **Phase 2**      | `react‑i18next` ready from day 1       |
+### **Current State: ~40% Feature Parity**
+
+| Feature Category | Engarde | Enguardia | Gap Analysis |
+|------------------|---------|-----------|--------------|
+| **Basic Poule Configuration** | ✅ | ✅ | **PARITY** - Modern UX advantage |
+| **Multi-Round Tournaments** | ✅ | ❌ | **CRITICAL GAP** - Only single round supported |
+| **Advanced Elimination Systems** | ✅ | ❌ | **MAJOR GAP** - No DE configuration |
+| **Repechage Systems** | ✅ | ❌ | **MAJOR GAP** - Not implemented |
+| **Automatic Qualification** | ✅ | ❌ | **MAJOR GAP** - Manual phase management only |
+| **Variable Poule Sizes** | ✅ | ❌ | **MODERATE GAP** - Fixed sizes only |
+| **Formula Templates** | ✅ | ❌ | **MODERATE GAP** - No pre-built formulas |
+| **Complex Bracket Systems** | ✅ | ❌ | **MAJOR GAP** - No E-F-G tableaux |
+
+### **Engarde's Advanced Capabilities (From Real Tournament Analysis)**
+
+Based on analysis of actual Engarde tournaments:
+
+**Complex Multi-Round Example (U14 femmes Marathon Fleuret 2023):**
+- 125 fencers → 3 poule rounds → Direct elimination
+- **Round 1**: 18 poules (17×7, 1×6) → 85 qualified
+- **Round 2**: 17 poules (5 each) → 65 qualified  
+- **Round 3**: 13 poules (5 each) → 48 qualified
+- **DE**: Multiple tableau brackets (Main, E-F, G)
+- **Separation**: Club/nationality separation across all rounds
 
 ---
 
-## 3 · User Roles & Permissions
+## 3 · Goals & Scope (Updated)
+
+| Goal | Phase | Priority | Notes |
+|------|-------|----------|-------|
+| **CRITICAL PARITY FEATURES** | | | |
+| Multi-round poule tournaments | **MVP** | P0 | Foundation for complex formulas |
+| Direct elimination configuration | **MVP** | P0 | Complete bracket setup |
+| Automatic qualification management | **MVP** | P0 | Progression between phases |
+| Variable poule sizes per round | **MVP** | P1 | Mixed sizes (17×7, 1×6) |
+| **ADVANCED PARITY FEATURES** | | | |
+| Repechage/classification systems | Phase 2 | P1 | E-F-G tableaux |
+| Formula templates | Phase 2 | P1 | Pre-built tournament types |
+| Complex bracket systems | Phase 2 | P2 | Multiple elimination paths |
+| **EXISTING FEATURES** | | | |
+| Import FIE XML / CSV rosters | ✔️ MVP | P0 | Export "nice‑to‑have" |
+| Club/country separation | ✔️ MVP | P0 | Enhanced multi-round support |
+| PDF reports & printing | ✔️ MVP | P0 | Match Engarde layouts |
+| Role‑based authentication | ✔️ MVP | P0 | Admin/Referee/Public |
+| **ENHANCEMENT FEATURES** | | | |
+| Real‑time updates (WebSockets) | Phase 2 | P1 | Live bracket updates |
+| Multilingual UI (EN · ES · FR) | Phase 2 | P1 | i18next integration |
+| Offline PWA capability | Phase 3 | P2 | Venue internet reliability |
+
+---
+
+## 4 · User Roles & Permissions
 
 | Role           | Capabilities                                                                                                         |
 | -------------- | -------------------------------------------------------------------------------------------------------------------- |
-| **Admin / TD** | Create events, import XML, edit entries, assign pistes/times/referees, override any result, generate reports/exports |
-| **Referee**    | View own poules & bouts, enter scores, confirm winner                                                                |
-| **Public**     | Live read‑only results & brackets – no login                                                                         |
+| **Admin / TD** | Create events, import XML, configure complex formulas, manage multi-round tournaments, assign pistes/referees, override results |
+| **Referee**    | View assigned poules & bouts, enter scores, confirm winners across all tournament phases                             |
+| **Public**     | Live read‑only results, brackets, and rankings across all phases – no login required                                |
 
 ---
 
-## 4 · Functional Requirements (MVP)
+## 5 · Enhanced Functional Requirements
 
-1. **Event Management**
+### **5.1 Advanced Formula Configuration (NEW)**
 
-   * CRUD tournament metadata (name, dates, weapon, category).
-   * Multiple stored events; one “active” at a time per org in MVP.
+**Multi-Round Poule System:**
+- Support 1-5 poule rounds per competition
+- Variable poule sizes within same round (e.g., "17 poules de 7, 1 poule de 6")
+- Automatic qualification quotas between rounds
+- Club/nationality separation across all rounds
+- Configurable advancement rules (top N, percentage, etc.)
 
-2. **Roster Handling**
+**Direct Elimination Enhancement:**
+- Multiple bracket types (Main, Repechage, Classification)
+- E-F-G tableau system for comprehensive ranking
+- Automatic bracket seeding from poule results
+- Support for 8/16/32/64/128/256 brackets with proper bye distribution
 
-   * Import FIE XML or CSV; manual add/edit/delete athletes.
-   * Mark present/absent; prevent duplicates.
+**Formula Templates:**
+- Pre-built templates for common tournament types:
+  - FIE World Cup (Senior/Junior variants)
+  - National Championship format
+  - Club tournament formats
+  - Custom formula builder with save/load
 
-3. **Formula Setup**
+### **5.2 Enhanced Tournament Management**
 
-   * Classic flow: 1 poule round → DE.
-   * Toggle third‑place bout; choose bracket size; set % advancing.
+**Phase Management:**
+- Sequential phase execution with automatic progression
+- Phase-specific configuration (poule size, qualification rules)
+- Real-time phase status tracking
+- Rollback capability for corrections
 
-4. **Poules**
+**Advanced Bracket Systems:**
+- Repechage rounds for eliminated fencers
+- Classification bouts for final ranking
+- Multiple elimination paths
+- Automatic bracket generation with optimal seeding
 
-   * Auto distribution with perfect separation by club/country.
-   * Manual drag‑and‑drop adjustments.
-   * Assign pistes, times, referees.
-   * Generate printable poule sheets (PDF).
+### **5.3 Database Schema Enhancements Required**
 
-5. **Score Entry – Poules**
+```sql
+-- Enhanced Phase model
+model Phase {
+  // ... existing fields ...
+  qualificationQuota: Int?          // Number advancing to next phase
+  qualificationPercentage: Float?   // Percentage advancing
+  qualificationRules: Json?         // Complex qualification logic
+  pouleSizeVariations: Json?        // Allow mixed poule sizes
+  separationRules: Json?            // Club/country separation config
+}
 
-   * Grid UI per poule or per bout.
-   * Auto compute victories, indicators, quotas.
-   * Lock poule when complete.
+-- Formula Templates
+model FormulaTemplate {
+  id: String @id @default(cuid())
+  name: String
+  description: String
+  weapon: Weapon?
+  category: String?
+  phases: Json                      // Array of phase configurations
+  isPublic: Boolean @default(false)
+  organizationId: String?
+  createdAt: DateTime @default(now())
+  updatedAt: DateTime @updatedAt
+}
 
-6. **Overall Ranking**
+-- Enhanced Bracket Support
+model BracketConfiguration {
+  id: String @id @default(cuid())
+  phaseId: String
+  bracketType: BracketType         // MAIN, REPECHAGE, CLASSIFICATION
+  size: Int                        // 8, 16, 32, 64, 128, 256
+  seedingMethod: SeedingMethod     // RANKING, SNAKE, MANUAL
+  configuration: Json              // Bracket-specific settings
+}
 
-   * Instant calculation from all poules.
-   * Printable provisional ranking.
-
-7. **Direct Elimination**
-
-   * Auto bracket seeding; support byes.
-   * Interactive visual bracket.
-   * Assign piste/time/referee per bout.
-   * Enter bout scores; winners advance automatically.
-
-8. **Reports & Exports**
-
-   * Poule sheets, match slips, brackets, final ranking (PDF).
-   * XML export (Phase 3).
-   * Public live pages auto‑refresh.
-
-9. **Authentication & Security**
-
-   * `NextAuth.js` with e‑mail/password + Google OAuth.
-   * Secure cookies/JWT; BCrypt; HTTPS everywhere.
+enum BracketType {
+  MAIN
+  REPECHAGE
+  CLASSIFICATION
+  CONSOLATION
+}
+```
 
 ---
 
-## 5 · Non‑Functional Requirements
-
-* **Performance** – smoothly handle 300+ fencers, 50 poules, 128‑tableau.
-* **Cross‑device** – tested on desktop Chrome/Firefox, Safari iOS, Android Chrome.
-* **Accessibility** – WCAG AA for public pages.
-* **Data integrity** – audit log; daily DB backup.
-
----
-
-## 6 · Architecture Overview
+## 6 · Architecture Overview (Updated)
 
 ```
-┌───────────────────────────────────────────────┐
-│                 Next.js App                  │
-│  • React pages & components                  │
-│  • API Routes / Server Actions (backend)     │
-│  • i18n (EN · ES · FR)                       │
-│  • Service Worker (PWA, Phase 3)             │
-│  • Socket.io handler (Phase 2)               │
-└────────────┬──────────────────────────────────┘
-             │ Prisma ORM
+┌─────────────────────────────────────────────────────┐
+│                 Next.js App                        │
+│  • React pages & components                        │
+│  • API Routes / Server Actions (backend)           │
+│  • Advanced Formula Engine                         │
+│  • Multi-round Tournament Logic                    │
+│  • Bracket Generation Algorithms                   │
+│  • i18n (EN · ES · FR)                             │
+│  • Service Worker (PWA, Phase 3)                   │
+│  • Socket.io handler (Phase 2)                     │
+└────────────┬────────────────────────────────────────┘
+             │ Prisma ORM + Enhanced Schema
 ┌────────────▼────────────┐
 │ PostgreSQL (prod)       │
+│ • Multi-round support   │
+│ • Formula templates     │
+│ • Complex bracket data  │
 │ SQLite (local / offline)│
 └─────────────────────────┘
 ```
 
-* **Hosting** – Vercel (static + serverless API routes) with managed Postgres (Supabase, Railway, etc.).
-* **Real‑time** – Socket.io or Next Server Components streaming; fallback polling.
-* **Offline** – Service Worker caches assets + IndexedDB queue (Phase 3).
+**Key Architectural Components:**
+
+- **Formula Engine**: Core logic for multi-round tournament management
+- **Bracket Generator**: Automatic bracket creation with proper seeding
+- **Qualification Manager**: Handles progression between phases
+- **Separation Algorithm**: Club/nationality distribution across rounds
 
 ---
 
-## 7 · Roadmap
+## 7 · Implementation Roadmap (Updated)
 
-| Phase                     | Duration   | Key Deliverables                                                                          |
-| ------------------------- | ---------- | ----------------------------------------------------------------------------------------- |
-| **1 – MVP (Admin‑only)**  | 8–10 weeks | Event CRUD, XML import, poules, DE, PDF reports, basic auth, responsive UI                |
-| **2 – Multi‑user & Live** | +6 weeks   | Referee role, WebSockets, live public pages, full i18n (EN · ES · FR)                     |
-| **3 – Advanced Parity**   | +8 weeks   | Team events, smart referee allocation, full PWA offline sync, XML export, branded reports |
-| **4 – Nice‑to‑haves**     | ongoing    | Native mobile wrapper, analytics, ranking‑API integration, other combat sports            |
+### **Phase 1 – Critical Parity (10-12 weeks)**
+
+**Week 1-2: Foundation**
+- Database schema enhancements for multi-round support
+- Formula template system architecture
+- Enhanced Phase model implementation
+
+**Week 3-4: Multi-Round Poule System**
+- Multiple poule rounds configuration UI
+- Variable poule size support
+- Automatic qualification management
+- Enhanced club/country separation
+
+**Week 5-6: Direct Elimination Enhancement**
+- Complete DE configuration interface
+- Bracket generation algorithms
+- Multiple bracket type support
+- Automatic seeding from poule results
+
+**Week 7-8: Formula Templates**
+- Template creation and management system
+- Pre-built tournament formats
+- Import/export formula configurations
+- Template sharing between organizations
+
+**Week 9-10: Integration & Testing**
+- End-to-end tournament flow testing
+- Performance optimization for large tournaments
+- Cross-browser compatibility
+- Mobile responsiveness
+
+**Week 11-12: Polish & Documentation**
+- UI/UX refinements
+- Admin documentation
+- Tournament director training materials
+- Production deployment preparation
+
+### **Phase 2 – Advanced Features (8-10 weeks)**
+
+**Week 13-16: Advanced Bracket Systems**
+- Repechage system implementation
+- E-F-G tableau support
+- Classification rounds
+- Multiple elimination paths
+
+**Week 17-20: Real-time & Multi-user**
+- WebSocket implementation
+- Live bracket updates
+- Referee interface enhancements
+- Multi-user conflict resolution
+
+**Week 21-22: Internationalization**
+- Full i18n implementation (EN/ES/FR)
+- Localized tournament templates
+- Regional rule variations
+- Cultural formatting (dates, numbers)
+
+### **Phase 3 – Excellence & Innovation (6-8 weeks)**
+
+**Week 23-26: PWA & Offline**
+- Service worker implementation
+- Offline tournament management
+- Data synchronization
+- Local backup systems
+
+**Week 27-30: Advanced Features**
+- Team tournament support
+- Advanced analytics and reporting
+- Integration with ranking systems
+- Custom branding options
 
 ---
 
-## 8 · Risks & Mitigations
+## 8 · Success Metrics (Updated)
 
-| Risk                              | Impact        | Mitigation                                           |
-| --------------------------------- | ------------- | ---------------------------------------------------- |
-| Single‑dev bandwidth              | Schedule slip | Strict MVP scope, reuse libraries, weekly scope cuts |
-| Rule edge‑cases (e.g., repechage) | Wrong results | Unit tests comparing to Engarde outputs              |
-| Offline complexity                | Tech debt     | Start with read‑only cache; add sync queue later     |
-| Data loss during event            | High          | Auto‑save, local SQLite backup, daily export         |
+### **Parity Metrics**
+- ✅ **100% feature parity** with Engarde formula configuration
+- ✅ Successfully run **multi-round tournaments** (3+ poule rounds)
+- ✅ Generate **complex bracket systems** (Main + Repechage + Classification)
+- ✅ Handle **300+ fencers** across multiple rounds without performance issues
+
+### **Performance Metrics**
+- ⏱️ **Multi-round poule generation** in < 10 seconds for 300 fencers
+- ⏱️ **Bracket generation** in < 5 seconds for 128-fencer DE
+- ⏱️ **Phase transitions** complete in < 3 seconds
+- 📱 **Mobile referee interface** loads in < 2 seconds
+
+### **Quality Metrics**
+- 🎯 **Zero calculation errors** compared to Engarde outputs
+- 🖨️ **PDF reports** visually match Engarde layouts
+- 🌐 **99.9% uptime** during tournament execution
+- 📊 **User satisfaction** ≥ 4.5/5 from tournament directors
 
 ---
 
-## 9 · Success Metrics
+## 9 · Risks & Mitigations (Updated)
 
-* ✅ Run **one real tournament** end‑to‑end without falling back to Engarde desktop.
-* ⏱️ Admin generates poules & DE **in < 5 min** post‑import.
-* 📱 Referee records a bout **in ≤ 15 s** on mobile.
-* 🖨️ Reports visually match Engarde originals.
-* 🌐 99.9 % uptime during event window.
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| **Complex algorithm implementation** | High | Unit tests against Engarde outputs, phased rollout |
+| **Performance with large tournaments** | High | Database optimization, caching, load testing |
+| **Multi-round logic complexity** | Medium | Comprehensive test coverage, expert consultation |
+| **Formula template compatibility** | Medium | Engarde import/export, validation tools |
+| **Real-time synchronization issues** | Medium | Conflict resolution, offline fallback |
+| **Single-developer bandwidth** | High | Strict prioritization, community contributions |
+
+---
+
+## 10 · Technical Specifications
+
+### **Formula Engine Requirements**
+- Support for 1-5 poule rounds per competition
+- Variable poule sizes within rounds (3-12 fencers per poule)
+- Automatic qualification calculation and progression
+- Club/nationality separation with configurable rules
+- Bracket generation for 8-256 fencers with proper bye distribution
+
+### **Performance Requirements**
+- Handle 500+ concurrent users during major tournaments
+- Support tournaments with 300+ fencers across multiple rounds
+- Real-time updates with <100ms latency
+- Offline capability for 24+ hours of tournament operation
+
+### **Compatibility Requirements**
+- Import/export compatibility with Engarde XML format
+- PDF output matching Engarde layout standards
+- Cross-platform support (Windows, macOS, Linux, iOS, Android)
+- Accessibility compliance (WCAG 2.1 AA)
 
 ---
 
 ### Next Steps
 
-1. Bootstrap Next.js repo (App Router) + Tailwind + Prisma + NextAuth.
-2. Design DB schema; create initial seed fixtures.
-3. Build Event & Roster UI.
-4. Prototype poule generator; cross‑check against Engarde outputs.
+1. **Immediate**: Update database schema for multi-round support
+2. **Week 1**: Implement enhanced Phase model and Formula templates
+3. **Week 2**: Build multi-round poule configuration interface
+4. **Week 3**: Develop automatic qualification management system
+5. **Week 4**: Create comprehensive test suite against Engarde outputs

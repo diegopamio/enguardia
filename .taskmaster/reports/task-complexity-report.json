@@ -1,0 +1,213 @@
+{
+	"meta": {
+		"generatedAt": "2025-07-12T21:06:48.349Z",
+		"tasksAnalyzed": 25,
+		"totalTasks": 25,
+		"analysisCount": 25,
+		"thresholdScore": 6,
+		"projectName": "Taskmaster",
+		"usedResearch": true
+	},
+	"complexityAnalysis": [
+		{
+			"taskId": 22,
+			"taskTitle": "Set up Next.js project with TypeScript",
+			"complexityScore": 3,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Break down the setup process into: initializing the project with create-next-app, configuring TypeScript and verifying tsconfig.json, installing and verifying additional type dependencies, and running the development server to validate setup.",
+			"reasoning": "Next.js provides built-in TypeScript support, making the setup process straightforward with minimal manual configuration. However, ensuring correct setup for both frontend and backend, and verifying all dependencies, adds some complexity[1][2]."
+		},
+		{
+			"taskId": 23,
+			"taskTitle": "Implement authentication system",
+			"complexityScore": 7,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Expand into: installing NextAuth.js, configuring providers (email/password and Google), setting up Google OAuth credentials, integrating a database adapter, creating authentication pages (sign-in, sign-up, profile), implementing session management, and writing authentication tests.",
+			"reasoning": "Authentication involves multiple providers, secure credential management, integration with a database, and custom UI flows. Testing and session handling further increase complexity."
+		},
+		{
+			"taskId": 24,
+			"taskTitle": "Set up PostgreSQL database with Prisma ORM",
+			"complexityScore": 5,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Divide into: installing Prisma and dependencies, initializing Prisma, configuring the database connection, defining the initial schema, and verifying connectivity with a test query.",
+			"reasoning": "While Prisma streamlines ORM setup, defining schemas and ensuring connectivity with a live database requires careful configuration and validation."
+		},
+		{
+			"taskId": 25,
+			"taskTitle": "Implement multi-language support",
+			"complexityScore": 5,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Expand into: installing i18next and related packages, creating language files, configuring i18next, integrating the provider in the app, and building/testing a language switcher.",
+			"reasoning": "Internationalization requires configuration, file management, and UI integration, but is well-supported by libraries, keeping complexity moderate."
+		},
+		{
+			"taskId": 26,
+			"taskTitle": "Design and implement basic UI components",
+			"complexityScore": 6,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break down into: designing component specifications, implementing each core component (Header, Footer, Button, Input, Select, Table, Modal), applying Tailwind CSS, ensuring accessibility, integrating Headless UI, and setting up Storybook/testing.",
+			"reasoning": "Building a reusable, accessible component library with design consistency and testing adds moderate complexity, especially with responsiveness and accessibility requirements."
+		},
+		{
+			"taskId": 27,
+			"taskTitle": "Implement user role and permission system",
+			"complexityScore": 7,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Expand into: extending the User model, defining role enums, implementing middleware for role checks, creating route/component protection logic, integrating with authentication, and writing tests for permissions.",
+			"reasoning": "Role-based access control requires schema changes, middleware, and robust testing to ensure security and correct access across the app."
+		},
+		{
+			"taskId": 28,
+			"taskTitle": "Develop Formula Engine core logic",
+			"complexityScore": 8,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Divide into: designing the FormulaEngine class, implementing phase/round management, pool generation, qualification calculation, integrating math libraries, adding TypeScript types, and writing comprehensive tests.",
+			"reasoning": "Tournament logic is algorithmically complex, requiring careful design, strong typing, and extensive testing to handle diverse scenarios."
+		},
+		{
+			"taskId": 29,
+			"taskTitle": "Implement multi-round poule system",
+			"complexityScore": 8,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break down into: extending FormulaEngine for multiple rounds, implementing poule generation algorithms, handling variable sizes, developing qualification logic, integrating configuration options, and testing with tournament scenarios.",
+			"reasoning": "Supporting variable poule rounds and sizes with automatic qualification involves complex algorithms and edge case handling."
+		},
+		{
+			"taskId": 30,
+			"taskTitle": "Develop club/nationality separation algorithm",
+			"complexityScore": 7,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Expand into: designing the SeparationAlgorithm class, integrating with FormulaEngine, implementing club/nationality distribution logic, utilizing graph-based approaches, and writing unit/integration tests.",
+			"reasoning": "Balancing separation constraints across rounds with optimal distribution is algorithmically challenging, especially with graph-based methods."
+		},
+		{
+			"taskId": 31,
+			"taskTitle": "Implement Direct Elimination (DE) configuration",
+			"complexityScore": 7,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Divide into: designing the DEConfiguration class, implementing bracket generation for various sizes, handling bye distribution, seeding logic, integrating with FormulaEngine, and writing tests for bracket correctness.",
+			"reasoning": "Generating and configuring DE brackets with correct seeding and progression is non-trivial, especially for large tournaments."
+		},
+		{
+			"taskId": 32,
+			"taskTitle": "Develop Bracket Generator for complex systems",
+			"complexityScore": 8,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Break down into: designing the BracketGenerator class, implementing main/repechage/classification brackets, supporting E-F-G tableau, developing repechage/classification algorithms, integrating with tournament flow, and comprehensive testing.",
+			"reasoning": "Supporting multiple bracket types and complex progression systems requires advanced algorithms and careful integration."
+		},
+		{
+			"taskId": 33,
+			"taskTitle": "Implement Formula Template system",
+			"complexityScore": 6,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Expand into: defining the FormulaTemplate model, implementing CRUD operations, developing the TemplateManager, creating pre-built templates, and testing template application.",
+			"reasoning": "Template management involves schema design, CRUD logic, and integration, but leverages standard patterns."
+		},
+		{
+			"taskId": 34,
+			"taskTitle": "Develop advanced qualification management system",
+			"complexityScore": 8,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Divide into: designing the QualificationManager class, implementing configurable rules, integrating a rules engine, handling ties/special cases, connecting with FormulaEngine, and writing tests for various scenarios.",
+			"reasoning": "Flexible, rule-driven qualification logic with edge case handling and integration with tournament flow is highly complex."
+		},
+		{
+			"taskId": 35,
+			"taskTitle": "Implement real-time updates using WebSockets",
+			"complexityScore": 7,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break down into: installing/configuring Socket.IO, setting up the WebSocket server, implementing real-time update logic, integrating client-side context, handling synchronization, and writing tests for real-time flows.",
+			"reasoning": "Real-time updates require backend and frontend coordination, robust event handling, and thorough testing for concurrency."
+		},
+		{
+			"taskId": 36,
+			"taskTitle": "Develop PDF report generation system",
+			"complexityScore": 6,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Expand into: installing PDFKit, designing report templates, implementing the ReportGenerator class, matching Engarde layouts, and writing tests/visual regression checks.",
+			"reasoning": "Generating complex, layout-accurate PDFs programmatically is moderately challenging, especially for visual fidelity."
+		},
+		{
+			"taskId": 37,
+			"taskTitle": "Implement FIE XML / CSV roster import",
+			"complexityScore": 6,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Divide into: installing XML/CSV parsing libraries, implementing ImportManager, developing data validation, handling errors, and writing tests with sample files.",
+			"reasoning": "Parsing and validating multiple data formats with robust error handling adds moderate complexity."
+		},
+		{
+			"taskId": 38,
+			"taskTitle": "Develop tournament phase management system",
+			"complexityScore": 8,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Break down into: designing the PhaseManager class, integrating with FormulaEngine, implementing sequential phase logic, developing rollback mechanisms, integrating a state machine library, and writing tests for transitions and error handling.",
+			"reasoning": "Managing complex phase transitions, rollbacks, and error states in tournaments is algorithmically and architecturally demanding."
+		},
+		{
+			"taskId": 39,
+			"taskTitle": "Implement referee interface for score entry",
+			"complexityScore": 6,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Expand into: designing score entry components, implementing real-time syncing, optimizing for mobile, adding confirmation dialogs, integrating with backend, and writing usability tests.",
+			"reasoning": "Building a real-time, mobile-friendly interface with robust syncing and usability adds moderate complexity."
+		},
+		{
+			"taskId": 40,
+			"taskTitle": "Develop public results and ranking display",
+			"complexityScore": 6,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break down into: designing display components, integrating real-time updates, implementing responsive layouts, adding charting/visualization, connecting to backend data, and writing cross-browser/mobile tests.",
+			"reasoning": "Live data display with real-time updates and responsive design requires careful UI and data flow management."
+		},
+		{
+			"taskId": 41,
+			"taskTitle": "Implement offline mode (PWA)",
+			"complexityScore": 7,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Expand into: configuring Next.js for PWA, implementing service worker, developing offline data sync logic, integrating IndexedDB, handling online/offline transitions, and writing offline tests.",
+			"reasoning": "Offline support with data synchronization and PWA features is technically challenging, especially for complex apps."
+		},
+		{
+			"taskId": 42,
+			"taskTitle": "Develop advanced analytics and reporting",
+			"complexityScore": 7,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Divide into: designing the AnalyticsEngine, implementing advanced calculations, building visualization components, developing customizable report templates, integrating BI tools, and writing analytics/reporting tests.",
+			"reasoning": "Advanced analytics and customizable reporting require complex data processing, visualization, and integration."
+		},
+		{
+			"taskId": 43,
+			"taskTitle": "Implement performance optimizations",
+			"complexityScore": 7,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break down into: optimizing database queries, setting up Redis caching, optimizing React components, implementing virtualization, conducting performance profiling, and writing automated performance tests.",
+			"reasoning": "Optimizing for large-scale performance involves backend, frontend, and infrastructure improvements, requiring deep analysis and testing."
+		},
+		{
+			"taskId": 44,
+			"taskTitle": "Develop comprehensive test suite",
+			"complexityScore": 8,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Expand into: setting up unit testing, implementing component tests, configuring integration tests, establishing end-to-end tests, creating test fixtures/factories, integrating CI, and monitoring test coverage.",
+			"reasoning": "Building a thorough, automated test suite across all layers of a complex app is a significant undertaking."
+		},
+		{
+			"taskId": 45,
+			"taskTitle": "Create user documentation and training materials",
+			"complexityScore": 4,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Divide into: drafting user manuals, generating documentation with VuePress, creating video tutorials, developing interactive guides, and gathering/testing user feedback.",
+			"reasoning": "Documentation and training are content-heavy but technically straightforward, with moderate complexity for interactive elements."
+		},
+		{
+			"taskId": 46,
+			"taskTitle": "Implement deployment and DevOps setup",
+			"complexityScore": 6,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break down into: setting up Docker, configuring CI/CD pipelines, deploying to cloud platforms, setting up monitoring/logging, testing deployment scenarios, and verifying rollback/alerting.",
+			"reasoning": "Deployment and DevOps require coordination across infrastructure, automation, and monitoring, with moderate technical complexity."
+		}
+	]
+}

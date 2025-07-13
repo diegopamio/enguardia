@@ -34,6 +34,7 @@ model Organization {
   organizationRankings  OrganizationRanking[]
   auditLogs             AuditLog[]
   translations          OrganizationTranslation[]
+  formulaTemplates      FormulaTemplate[]
 
   @@map("organizations")
 }
@@ -415,6 +416,17 @@ model Phase {
   status        PhaseStatus @default(SCHEDULED)
   startTime     DateTime?
   endTime       DateTime?
+  
+  // Multi-round support enhancements
+  qualificationQuota      Int?    // Number advancing to next phase
+  qualificationPercentage Float?  // Percentage advancing (alternative to quota)
+  qualificationRules      Json?   // Complex qualification logic
+  pouleSizeVariations     Json?   // Allow mixed poule sizes: {"sizes": [7, 7, 6], "distribution": "auto"}
+  separationRules         Json?   // Club/country separation config: {"club": true, "country": true, "maxSameClub": 2}
+  
+  // Configuration for this phase
+  configuration Json? // Phase-specific settings (poule count, bracket size, etc.)
+  
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
@@ -423,6 +435,7 @@ model Phase {
   translations  PhaseTranslation[]
   poules        Poule[]
   brackets      DirectEliminationBracket[]
+  bracketConfigs BracketConfiguration[]
 
   @@unique([competitionId, sequenceOrder])
   @@index([competitionId])
@@ -433,12 +446,67 @@ enum PhaseType {
   POULE              // Round-robin poules
   DIRECT_ELIMINATION // Single elimination
   CLASSIFICATION     // Placement matches
+  REPECHAGE          // Repechage rounds
 }
 
 enum PhaseStatus {
   SCHEDULED
   IN_PROGRESS
   COMPLETED
+  CANCELLED
+}
+
+// Formula Templates for tournament configurations
+model FormulaTemplate {
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
+  weapon         Weapon?  // Optional: template for specific weapon
+  category       String?  // Optional: template for specific category
+  phases         Json     // Array of phase configurations
+  isPublic       Boolean  @default(false) // Can other orgs use this template?
+  organizationId String?  // Null for system templates
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  // Relations
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@index([weapon, category])
+  @@index([organizationId])
+  @@map("formula_templates")
+}
+
+// Enhanced Bracket Support for complex systems
+model BracketConfiguration {
+  id            String        @id @default(cuid())
+  phaseId       String
+  bracketType   BracketType   // MAIN, REPECHAGE, CLASSIFICATION
+  size          Int           // 8, 16, 32, 64, 128, 256
+  seedingMethod SeedingMethod // RANKING, SNAKE, MANUAL
+  configuration Json?         // Bracket-specific settings
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  // Relations
+  phase         Phase         @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  
+  @@index([phaseId])
+  @@map("bracket_configurations")
+}
+
+enum BracketType {
+  MAIN           // Main elimination bracket
+  REPECHAGE      // Repechage for eliminated fencers
+  CLASSIFICATION // Classification for final ranking
+  CONSOLATION    // Consolation bracket
+}
+
+enum SeedingMethod {
+  RANKING        // Seed by current ranking
+  SNAKE          // Snake seeding pattern
+  MANUAL         // Manual assignment
+  RANDOM         // Random seeding
 }
 
 model PhaseTranslation {
