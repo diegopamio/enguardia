@@ -1,30 +1,150 @@
-import { PrismaClient, UserRole, Weapon, MembershipType, MembershipStatus, TournamentStatus, CompetitionStatus, PhaseType, PhaseStatus } from '@prisma/client'
+import { PrismaClient, UserRole, Weapon, MembershipType, MembershipStatus, TournamentStatus, CompetitionStatus, PhaseType, PhaseStatus, RegistrationStatus, ClubMembershipType } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
+// Comprehensive athlete data for realistic testing
+const athleteData = [
+  // Spanish Athletes
+  { firstName: 'Ana', lastName: 'García', nationality: 'ES', dateOfBirth: '1995-03-15', fieId: 'ESP001001', club: 'Chamartín' },
+  { firstName: 'Carlos', lastName: 'Rodríguez', nationality: 'ES', dateOfBirth: '1993-07-22', fieId: 'ESP001002', club: 'Chamartín' },
+  { firstName: 'María', lastName: 'López', nationality: 'ES', dateOfBirth: '1996-11-08', fieId: 'ESP001003', club: 'Chamartín' },
+  { firstName: 'David', lastName: 'Martín', nationality: 'ES', dateOfBirth: '1994-05-12', fieId: 'ESP001004', club: 'Chamartín' },
+  { firstName: 'Laura', lastName: 'Sánchez', nationality: 'ES', dateOfBirth: '1997-09-30', fieId: 'ESP001005', club: 'Chamartín' },
+  { firstName: 'Pablo', lastName: 'Fernández', nationality: 'ES', dateOfBirth: '1992-12-03', fieId: 'ESP001006', club: 'Barcelona' },
+  { firstName: 'Isabel', lastName: 'Ruiz', nationality: 'ES', dateOfBirth: '1995-08-17', fieId: 'ESP001007', club: 'Barcelona' },
+  { firstName: 'Alejandro', lastName: 'Moreno', nationality: 'ES', dateOfBirth: '1993-04-25', fieId: 'ESP001008', club: 'Barcelona' },
+  { firstName: 'Carmen', lastName: 'Jiménez', nationality: 'ES', dateOfBirth: '1996-10-14', fieId: 'ESP001009', club: 'Barcelona' },
+  { firstName: 'Javier', lastName: 'Herrera', nationality: 'ES', dateOfBirth: '1994-06-21', fieId: 'ESP001010', club: 'Sevilla' },
+  { firstName: 'Cristina', lastName: 'Castillo', nationality: 'ES', dateOfBirth: '1997-02-11', fieId: 'ESP001011', club: 'Sevilla' },
+  { firstName: 'Raúl', lastName: 'Vega', nationality: 'ES', dateOfBirth: '1992-09-07', fieId: 'ESP001012', club: 'Sevilla' },
+  { firstName: 'Natalia', lastName: 'Ramos', nationality: 'ES', dateOfBirth: '1995-12-19', fieId: 'ESP001013', club: 'Valencia' },
+  { firstName: 'Sergio', lastName: 'Torres', nationality: 'ES', dateOfBirth: '1993-03-28', fieId: 'ESP001014', club: 'Valencia' },
+  { firstName: 'Elena', lastName: 'Flores', nationality: 'ES', dateOfBirth: '1996-07-05', fieId: 'ESP001015', club: 'Valencia' },
+
+  // French Athletes
+  { firstName: 'Marie', lastName: 'Dubois', nationality: 'FR', dateOfBirth: '1998-11-08', fieId: 'FRA002001', club: 'Paris' },
+  { firstName: 'Pierre', lastName: 'Martin', nationality: 'FR', dateOfBirth: '1995-04-15', fieId: 'FRA002002', club: 'Paris' },
+  { firstName: 'Sophie', lastName: 'Bernard', nationality: 'FR', dateOfBirth: '1993-08-22', fieId: 'FRA002003', club: 'Paris' },
+  { firstName: 'Jean', lastName: 'Petit', nationality: 'FR', dateOfBirth: '1996-12-10', fieId: 'FRA002004', club: 'Paris' },
+  { firstName: 'Camille', lastName: 'Robert', nationality: 'FR', dateOfBirth: '1994-06-18', fieId: 'FRA002005', club: 'Lyon' },
+  { firstName: 'Antoine', lastName: 'Richard', nationality: 'FR', dateOfBirth: '1992-10-25', fieId: 'FRA002006', club: 'Lyon' },
+  { firstName: 'Léa', lastName: 'Durand', nationality: 'FR', dateOfBirth: '1997-02-14', fieId: 'FRA002007', club: 'Lyon' },
+  { firstName: 'Nicolas', lastName: 'Moreau', nationality: 'FR', dateOfBirth: '1995-09-03', fieId: 'FRA002008', club: 'Marseille' },
+  { firstName: 'Amélie', lastName: 'Laurent', nationality: 'FR', dateOfBirth: '1993-05-27', fieId: 'FRA002009', club: 'Marseille' },
+  { firstName: 'Julien', lastName: 'Simon', nationality: 'FR', dateOfBirth: '1996-01-12', fieId: 'FRA002010', club: 'Marseille' },
+
+  // Italian Athletes
+  { firstName: 'Paolo', lastName: 'Rossi', nationality: 'IT', dateOfBirth: '1996-05-12', fieId: 'ITA22222', club: 'Roma' },
+  { firstName: 'Giulia', lastName: 'Bianchi', nationality: 'IT', dateOfBirth: '1994-09-30', fieId: 'ITA22223', club: 'Roma' },
+  { firstName: 'Marco', lastName: 'Verdi', nationality: 'IT', dateOfBirth: '1995-07-18', fieId: 'ITA22224', club: 'Roma' },
+  { firstName: 'Francesca', lastName: 'Neri', nationality: 'IT', dateOfBirth: '1993-11-25', fieId: 'ITA22225', club: 'Milano' },
+  { firstName: 'Alessandro', lastName: 'Conti', nationality: 'IT', dateOfBirth: '1996-03-08', fieId: 'ITA22226', club: 'Milano' },
+  { firstName: 'Valentina', lastName: 'Ferrari', nationality: 'IT', dateOfBirth: '1994-12-15', fieId: 'ITA22227', club: 'Milano' },
+  { firstName: 'Luca', lastName: 'Gallo', nationality: 'IT', dateOfBirth: '1992-08-02', fieId: 'ITA22228', club: 'Napoli' },
+  { firstName: 'Chiara', lastName: 'Ricci', nationality: 'IT', dateOfBirth: '1997-04-20', fieId: 'ITA22229', club: 'Napoli' },
+  { firstName: 'Matteo', lastName: 'Marino', nationality: 'IT', dateOfBirth: '1995-10-07', fieId: 'ITA22230', club: 'Torino' },
+  { firstName: 'Silvia', lastName: 'Greco', nationality: 'IT', dateOfBirth: '1993-06-14', fieId: 'ITA22231', club: 'Torino' },
+
+  // German Athletes
+  { firstName: 'Hans', lastName: 'Müller', nationality: 'DE', dateOfBirth: '1994-03-12', fieId: 'GER33333', club: 'Berlin' },
+  { firstName: 'Anna', lastName: 'Schmidt', nationality: 'DE', dateOfBirth: '1996-07-28', fieId: 'GER33334', club: 'Berlin' },
+  { firstName: 'Klaus', lastName: 'Weber', nationality: 'DE', dateOfBirth: '1993-11-15', fieId: 'GER33335', club: 'München' },
+  { firstName: 'Petra', lastName: 'Wagner', nationality: 'DE', dateOfBirth: '1995-05-03', fieId: 'GER33336', club: 'München' },
+  { firstName: 'Thomas', lastName: 'Becker', nationality: 'DE', dateOfBirth: '1992-09-21', fieId: 'GER33337', club: 'Hamburg' },
+  { firstName: 'Sabine', lastName: 'Schulz', nationality: 'DE', dateOfBirth: '1997-01-18', fieId: 'GER33338', club: 'Hamburg' },
+  { firstName: 'Michael', lastName: 'Hoffmann', nationality: 'DE', dateOfBirth: '1994-08-05', fieId: 'GER33339', club: 'Köln' },
+  { firstName: 'Birgit', lastName: 'Schäfer', nationality: 'DE', dateOfBirth: '1996-12-22', fieId: 'GER33340', club: 'Köln' },
+
+  // American Athletes
+  { firstName: 'John', lastName: 'Smith', nationality: 'US', dateOfBirth: '1992-07-22', fieId: 'USA67890', club: 'NYC' },
+  { firstName: 'Sarah', lastName: 'Johnson', nationality: 'US', dateOfBirth: '1995-11-08', fieId: 'USA67891', club: 'NYC' },
+  { firstName: 'Michael', lastName: 'Williams', nationality: 'US', dateOfBirth: '1993-04-15', fieId: 'USA67892', club: 'NYC' },
+  { firstName: 'Emily', lastName: 'Brown', nationality: 'US', dateOfBirth: '1996-08-30', fieId: 'USA67893', club: 'LA' },
+  { firstName: 'David', lastName: 'Davis', nationality: 'US', dateOfBirth: '1994-12-17', fieId: 'USA67894', club: 'LA' },
+  { firstName: 'Jessica', lastName: 'Miller', nationality: 'US', dateOfBirth: '1997-03-25', fieId: 'USA67895', club: 'LA' },
+  { firstName: 'Robert', lastName: 'Wilson', nationality: 'US', dateOfBirth: '1992-09-12', fieId: 'USA67896', club: 'Chicago' },
+  { firstName: 'Ashley', lastName: 'Moore', nationality: 'US', dateOfBirth: '1995-06-19', fieId: 'USA67897', club: 'Chicago' },
+  { firstName: 'Christopher', lastName: 'Taylor', nationality: 'US', dateOfBirth: '1993-10-06', fieId: 'USA67898', club: 'Boston' },
+  { firstName: 'Amanda', lastName: 'Anderson', nationality: 'US', dateOfBirth: '1996-02-23', fieId: 'USA67899', club: 'Boston' },
+
+  // Russian Athletes
+  { firstName: 'Sofia', lastName: 'Petrov', nationality: 'RU', dateOfBirth: '1994-09-30', fieId: 'RUS33333', club: 'Moscow' },
+  { firstName: 'Dmitri', lastName: 'Volkov', nationality: 'RU', dateOfBirth: '1992-05-18', fieId: 'RUS33334', club: 'Moscow' },
+  { firstName: 'Katarina', lastName: 'Smirnova', nationality: 'RU', dateOfBirth: '1995-12-07', fieId: 'RUS33335', club: 'Moscow' },
+  { firstName: 'Alexei', lastName: 'Kozlov', nationality: 'RU', dateOfBirth: '1993-08-14', fieId: 'RUS33336', club: 'Petersburg' },
+  { firstName: 'Yelena', lastName: 'Popova', nationality: 'RU', dateOfBirth: '1996-04-21', fieId: 'RUS33337', club: 'Petersburg' },
+  { firstName: 'Viktor', lastName: 'Novikov', nationality: 'RU', dateOfBirth: '1994-11-28', fieId: 'RUS33338', club: 'Petersburg' },
+
+  // British Athletes
+  { firstName: 'James', lastName: 'Thompson', nationality: 'GB', dateOfBirth: '1993-06-15', fieId: 'GBR44444', club: 'London' },
+  { firstName: 'Emma', lastName: 'White', nationality: 'GB', dateOfBirth: '1995-10-22', fieId: 'GBR44445', club: 'London' },
+  { firstName: 'William', lastName: 'Harris', nationality: 'GB', dateOfBirth: '1994-02-09', fieId: 'GBR44446', club: 'London' },
+  { firstName: 'Charlotte', lastName: 'Martin', nationality: 'GB', dateOfBirth: '1996-07-16', fieId: 'GBR44447', club: 'Edinburgh' },
+  { firstName: 'Oliver', lastName: 'Jackson', nationality: 'GB', dateOfBirth: '1992-11-03', fieId: 'GBR44448', club: 'Edinburgh' },
+  { firstName: 'Sophie', lastName: 'Clark', nationality: 'GB', dateOfBirth: '1997-03-20', fieId: 'GBR44449', club: 'Edinburgh' },
+
+  // Hungarian Athletes
+  { firstName: 'Zoltán', lastName: 'Nagy', nationality: 'HU', dateOfBirth: '1993-04-12', fieId: 'HUN55555', club: 'Budapest' },
+  { firstName: 'Eszter', lastName: 'Kovács', nationality: 'HU', dateOfBirth: '1995-08-29', fieId: 'HUN55556', club: 'Budapest' },
+  { firstName: 'Gábor', lastName: 'Szabó', nationality: 'HU', dateOfBirth: '1994-12-16', fieId: 'HUN55557', club: 'Budapest' },
+  { firstName: 'Petra', lastName: 'Tóth', nationality: 'HU', dateOfBirth: '1996-05-03', fieId: 'HUN55558', club: 'Debrecen' },
+  { firstName: 'András', lastName: 'Varga', nationality: 'HU', dateOfBirth: '1992-09-20', fieId: 'HUN55559', club: 'Debrecen' },
+  { firstName: 'Krisztina', lastName: 'Kiss', nationality: 'HU', dateOfBirth: '1997-01-07', fieId: 'HUN55560', club: 'Debrecen' },
+]
+
+// Club data with realistic information
+const clubData = [
+  // Spanish Clubs
+  { name: 'Club de Esgrima Chamartín', city: 'Madrid', country: 'ES', shortName: 'Chamartín' },
+  { name: 'Club de Esgrima Barcelona', city: 'Barcelona', country: 'ES', shortName: 'Barcelona' },
+  { name: 'Club de Esgrima Sevilla', city: 'Sevilla', country: 'ES', shortName: 'Sevilla' },
+  { name: 'Club de Esgrima Valencia', city: 'Valencia', country: 'ES', shortName: 'Valencia' },
+  
+  // French Clubs
+  { name: 'Cercle d\'Escrime de Paris', city: 'Paris', country: 'FR', shortName: 'Paris' },
+  { name: 'Club d\'Escrime de Lyon', city: 'Lyon', country: 'FR', shortName: 'Lyon' },
+  { name: 'Cercle d\'Escrime de Marseille', city: 'Marseille', country: 'FR', shortName: 'Marseille' },
+  
+  // Italian Clubs
+  { name: 'Circolo Scherma Roma', city: 'Roma', country: 'IT', shortName: 'Roma' },
+  { name: 'Circolo Scherma Milano', city: 'Milano', country: 'IT', shortName: 'Milano' },
+  { name: 'Circolo Scherma Napoli', city: 'Napoli', country: 'IT', shortName: 'Napoli' },
+  { name: 'Circolo Scherma Torino', city: 'Torino', country: 'IT', shortName: 'Torino' },
+  
+  // German Clubs
+  { name: 'Fechtclub Berlin', city: 'Berlin', country: 'DE', shortName: 'Berlin' },
+  { name: 'Fechtclub München', city: 'München', country: 'DE', shortName: 'München' },
+  { name: 'Fechtclub Hamburg', city: 'Hamburg', country: 'DE', shortName: 'Hamburg' },
+  { name: 'Fechtclub Köln', city: 'Köln', country: 'DE', shortName: 'Köln' },
+  
+  // American Clubs
+  { name: 'New York Fencing Club', city: 'New York', country: 'US', shortName: 'NYC' },
+  { name: 'Los Angeles Fencing Club', city: 'Los Angeles', country: 'US', shortName: 'LA' },
+  { name: 'Chicago Fencing Club', city: 'Chicago', country: 'US', shortName: 'Chicago' },
+  { name: 'Boston Fencing Club', city: 'Boston', country: 'US', shortName: 'Boston' },
+  
+  // Russian Clubs
+  { name: 'Moscow Fencing Club', city: 'Moscow', country: 'RU', shortName: 'Moscow' },
+  { name: 'St. Petersburg Fencing Club', city: 'St. Petersburg', country: 'RU', shortName: 'Petersburg' },
+  
+  // British Clubs
+  { name: 'London Fencing Club', city: 'London', country: 'GB', shortName: 'London' },
+  { name: 'Edinburgh Fencing Club', city: 'Edinburgh', country: 'GB', shortName: 'Edinburgh' },
+  
+  // Hungarian Clubs
+  { name: 'Budapest Fencing Club', city: 'Budapest', country: 'HU', shortName: 'Budapest' },
+  { name: 'Debrecen Fencing Club', city: 'Debrecen', country: 'HU', shortName: 'Debrecen' },
+]
+
 async function main() {
-  console.log('🌱 Seeding multi-tenant database...')
+  console.log('🌱 Seeding comprehensive tournament database...')
 
-  // Create organizations - mix of clubs and federations
+  // Create organizations
   const organization1 = await prisma.organization.upsert({
-    where: { id: 'org-demo-1' },
+    where: { id: 'org-spanish-fed' },
     update: {},
     create: {
-      id: 'org-demo-1',
-      name: 'Club de Esgrima Chamartín',
-      displayName: 'CE Chamartín',
-      description: 'Historic fencing club in Madrid, founded in 1952. Specializing in épée and foil training.',
-      city: 'Madrid',
-      country: 'Spain',
-      website: 'https://escrimachamartin.es',
-    },
-  })
-
-  const organization2 = await prisma.organization.upsert({
-    where: { id: 'org-demo-2' },
-    update: {},
-    create: {
-      id: 'org-demo-2',
+      id: 'org-spanish-fed',
       name: 'Federación Española de Esgrima',
       displayName: 'Real Fed. Española Esgrima',
       description: 'National federation governing fencing in Spain. Organizes national championships and international competitions.',
@@ -34,24 +154,37 @@ async function main() {
     },
   })
 
-  // Add a third organization - regional federation
-  const organization3 = await prisma.organization.upsert({
-    where: { id: 'org-demo-3' },
+  const organization2 = await prisma.organization.upsert({
+    where: { id: 'org-international' },
     update: {},
     create: {
-      id: 'org-demo-3',
-      name: 'USA Fencing',
-      displayName: 'USA Fencing',
-      description: 'National governing body for fencing in the United States. Promotes Olympic and Paralympic fencing.',
-      city: 'Colorado Springs',
-      country: 'USA',
-      website: 'https://usafencing.org',
+      id: 'org-international',
+      name: 'International Fencing Federation',
+      displayName: 'FIE',
+      description: 'International governing body for fencing. Organizes World Championships and Olympic competitions.',
+      city: 'Lausanne',
+      country: 'Switzerland',
+      website: 'https://fie.org',
     },
   })
 
-  console.log('✅ Created organizations:', organization1.displayName, organization2.displayName, organization3.displayName)
+  const organization3 = await prisma.organization.upsert({
+    where: { id: 'org-chamartin' },
+    update: {},
+    create: {
+      id: 'org-chamartin',
+      name: 'Club de Esgrima Chamartín',
+      displayName: 'CE Chamartín',
+      description: 'Historic fencing club in Madrid, founded in 1952. Specializing in épée and foil training.',
+      city: 'Madrid',
+      country: 'Spain',
+      website: 'https://escrimachamartin.es',
+    },
+  })
 
-  // Create system admin (no organization)
+  console.log('✅ Created organizations')
+
+  // Create users
   const systemAdmin = await prisma.user.upsert({
     where: { email: 'admin@enguardia.com' },
     update: {},
@@ -59,999 +192,562 @@ async function main() {
       email: 'admin@enguardia.com',
       name: 'System Administrator',
       role: UserRole.SYSTEM_ADMIN,
-      organizationId: null, // System admin has no org
+      organizationId: null,
     },
   })
 
-  // Create organization admins
   const orgAdmin1 = await prisma.user.upsert({
-    where: { email: 'admin@escrimachamartin.es' },
+    where: { email: 'admin@esgrima.es' },
     update: {},
     create: {
-      email: 'admin@escrimachamartin.es',
-      name: 'Carlos Rodriguez',
-      role: UserRole.ORGANIZATION_ADMIN,
+      email: 'admin@esgrima.es',
+      name: 'José María Rodríguez',
+      role: UserRole.ADMIN,
       organizationId: organization1.id,
     },
   })
 
   const orgAdmin2 = await prisma.user.upsert({
-    where: { email: 'admin@esgrima.es' },
+    where: { email: 'admin@fie.org' },
     update: {},
     create: {
-      email: 'admin@esgrima.es',
-      name: 'María González',
-      role: UserRole.ORGANIZATION_ADMIN,
+      email: 'admin@fie.org',
+      name: 'Emmanuel Katsiadakis',
+      role: UserRole.ADMIN,
       organizationId: organization2.id,
     },
   })
 
   const orgAdmin3 = await prisma.user.upsert({
-    where: { email: 'admin@usafencing.org' },
+    where: { email: 'admin@chamartin.es' },
     update: {},
     create: {
-      email: 'admin@usafencing.org',
-      name: 'Jennifer Smith',
-      role: UserRole.ORGANIZATION_ADMIN,
+      email: 'admin@chamartin.es',
+      name: 'Carlos Fernández',
+      role: UserRole.ADMIN,
       organizationId: organization3.id,
     },
   })
 
-  // Create referees
-  const referee1 = await prisma.user.upsert({
-    where: { email: 'referee@escrimachamartin.es' },
-    update: {},
-    create: {
-      email: 'referee@escrimachamartin.es',
-      name: 'Miguel Torres',
-      role: UserRole.REFEREE,
-      organizationId: organization1.id,
-    },
-  })
+  console.log('✅ Created users')
 
-  const referee2 = await prisma.user.upsert({
-    where: { email: 'referee@esgrima.es' },
-    update: {},
-    create: {
-      email: 'referee@esgrima.es',
-      name: 'Antonio Serrano',
-      role: UserRole.REFEREE,
-      organizationId: organization2.id,
-    },
-  })
+  // Create clubs
+  const clubs = []
+  for (const clubInfo of clubData) {
+    const club = await prisma.club.upsert({
+      where: { id: `club-${clubInfo.shortName.toLowerCase()}` },
+      update: {},
+      create: {
+        id: `club-${clubInfo.shortName.toLowerCase()}`,
+        name: clubInfo.name,
+        city: clubInfo.city,
+        country: clubInfo.country,
+        imageUrl: null,
+      },
+    })
+    clubs.push({ ...club, shortName: clubInfo.shortName })
+  }
 
-  const referee3 = await prisma.user.upsert({
-    where: { email: 'referee@usafencing.org' },
-    update: {},
-    create: {
-      email: 'referee@usafencing.org',
-      name: 'David Chen',
-      role: UserRole.REFEREE,
-      organizationId: organization3.id,
-    },
-  })
+  console.log(`✅ Created ${clubs.length} clubs`)
 
-  console.log('✅ Created users with roles')
+  // Create athletes
+  const athletes = []
+  for (const athleteInfo of athleteData) {
+    const club = clubs.find(c => c.shortName === athleteInfo.club)
+    if (!club) continue
 
-  // Create global athletes (shared across organizations)
-  const athlete1 = await prisma.athlete.upsert({
-    where: { id: 'athlete-1' },
-    update: {},
-    create: {
-      id: 'athlete-1',
-      firstName: 'Ana',
-      lastName: 'García',
-      dateOfBirth: new Date('1995-03-15'),
-      nationality: 'ES', // Spain
-      fieId: 'ESP12345',
-    },
-  })
+    const athlete = await prisma.athlete.upsert({
+      where: { fieId: athleteInfo.fieId },
+      update: {},
+      create: {
+        firstName: athleteInfo.firstName,
+        lastName: athleteInfo.lastName,
+        nationality: athleteInfo.nationality,
+        dateOfBirth: new Date(athleteInfo.dateOfBirth),
+        fieId: athleteInfo.fieId,
+        isActive: true,
+      },
+    })
+    athletes.push(athlete)
 
-  const athlete2 = await prisma.athlete.upsert({
-    where: { id: 'athlete-2' },
-    update: {},
-    create: {
-      id: 'athlete-2',
-      firstName: 'John',
-      lastName: 'Smith',
-      dateOfBirth: new Date('1992-07-22'),
-      nationality: 'US', // United States
-      fieId: 'USA67890',
-    },
-  })
-
-  const athlete3 = await prisma.athlete.upsert({
-    where: { id: 'athlete-3' },
-    update: {},
-    create: {
-      id: 'athlete-3',
-      firstName: 'Marie',
-      lastName: 'Dubois',
-      dateOfBirth: new Date('1998-11-08'),
-      nationality: 'FR', // France
-      fieId: 'FRA11111',
-    },
-  })
-
-  const athlete4 = await prisma.athlete.upsert({
-    where: { id: 'athlete-4' },
-    update: {},
-    create: {
-      id: 'athlete-4',
-      firstName: 'Paolo',
-      lastName: 'Rossi',
-      dateOfBirth: new Date('1996-05-12'),
-      nationality: 'IT', // Italy
-      fieId: 'ITA22222',
-    },
-  })
-
-  const athlete5 = await prisma.athlete.upsert({
-    where: { id: 'athlete-5' },
-    update: {},
-    create: {
-      id: 'athlete-5',
-      firstName: 'Sofia',
-      lastName: 'Petrov',
-      dateOfBirth: new Date('1994-09-30'),
-      nationality: 'RU', // Russia
-      fieId: 'RUS33333',
-    },
-  })
-
-  // Add more athletes with diverse nationalities
-  const athlete6 = await prisma.athlete.upsert({
-    where: { id: 'athlete-6' },
-    update: {},
-    create: {
-      id: 'athlete-6',
-      firstName: 'Hiroshi',
-      lastName: 'Tanaka',
-      dateOfBirth: new Date('1997-01-20'),
-      nationality: 'JP', // Japan
-      fieId: 'JPN44444',
-    },
-  })
-
-  const athlete7 = await prisma.athlete.upsert({
-    where: { id: 'athlete-7' },
-    update: {},
-    create: {
-      id: 'athlete-7',
-      firstName: 'Emma',
-      lastName: 'Johnson',
-      dateOfBirth: new Date('1999-04-08'),
-      nationality: 'CA', // Canada
-      fieId: 'CAN55555',
-    },
-  })
-
-  const athlete8 = await prisma.athlete.upsert({
-    where: { id: 'athlete-8' },
-    update: {},
-    create: {
-      id: 'athlete-8',
-      firstName: 'Klaus',
-      lastName: 'Mueller',
-      dateOfBirth: new Date('1993-12-03'),
-      nationality: 'DE', // Germany
-      fieId: 'GER66666',
-    },
-  })
-
-  const athlete9 = await prisma.athlete.upsert({
-    where: { id: 'athlete-9' },
-    update: {},
-    create: {
-      id: 'athlete-9',
-      firstName: 'Liam',
-      lastName: 'O\'Connor',
-      dateOfBirth: new Date('2000-06-15'),
-      nationality: 'GB', // United Kingdom
-      fieId: 'GBR77777',
-    },
-  })
-
-  const athlete10 = await prisma.athlete.upsert({
-    where: { id: 'athlete-10' },
-    update: {},
-    create: {
-      id: 'athlete-10',
-      firstName: 'Lucas',
-      lastName: 'Silva',
-      dateOfBirth: new Date('1991-08-25'),
-      nationality: 'BR', // Brazil
-      fieId: 'BRA88888',
-    },
-  })
-
-  console.log('✅ Created global athletes with diverse nationalities')
-
-  // Set athlete weapon specializations (using upsert to handle duplicates)
-  const weaponData = [
-    { athleteId: athlete1.id, weapon: Weapon.EPEE },
-    { athleteId: athlete1.id, weapon: Weapon.FOIL },
-    { athleteId: athlete2.id, weapon: Weapon.SABRE },
-    { athleteId: athlete3.id, weapon: Weapon.EPEE },
-    { athleteId: athlete4.id, weapon: Weapon.FOIL },
-    { athleteId: athlete5.id, weapon: Weapon.SABRE },
-    { athleteId: athlete6.id, weapon: Weapon.EPEE },
-    { athleteId: athlete6.id, weapon: Weapon.SABRE },
-    { athleteId: athlete7.id, weapon: Weapon.FOIL },
-    { athleteId: athlete8.id, weapon: Weapon.EPEE },
-    { athleteId: athlete9.id, weapon: Weapon.SABRE },
-    { athleteId: athlete9.id, weapon: Weapon.FOIL },
-    { athleteId: athlete10.id, weapon: Weapon.EPEE },
-  ]
-
-  for (const data of weaponData) {
+    // Create athlete weapon specialization
     await prisma.athleteWeapon.upsert({
       where: {
         athleteId_weapon: {
-          athleteId: data.athleteId,
-          weapon: data.weapon
-        }
+          athleteId: athlete.id,
+          weapon: Weapon.EPEE,
+        },
       },
       update: {},
-      create: data
-    })
-  }
-
-  console.log('✅ Created athlete weapon specializations')
-
-  // Create athlete-organization memberships (using upsert to handle duplicates)
-  const membershipData = [
-    // Spanish athletes - Ana García and Paolo Rossi - members of the club
-    {
-      athleteId: athlete1.id, // Ana García (ESP)
-      organizationId: organization1.id, // Club de Esgrima Chamartín
-      membershipType: MembershipType.MEMBER,
-      status: MembershipStatus.ACTIVE,
-    },
-    {
-      athleteId: athlete1.id, // Ana García (ESP)
-      organizationId: organization2.id, // Federación Española de Esgrima
-      membershipType: MembershipType.MEMBER,
-      status: MembershipStatus.ACTIVE,
-    },
-    {
-      athleteId: athlete4.id, // Paolo Rossi (ITA)
-      organizationId: organization1.id, // Club de Esgrima Chamartín
-      membershipType: MembershipType.MEMBER,
-      status: MembershipStatus.ACTIVE,
-    },
-    // American athletes - John Smith - member of USA Fencing
-    {
-      athleteId: athlete2.id, // John Smith (USA)
-      organizationId: organization3.id, // USA Fencing
-      membershipType: MembershipType.MEMBER,
-      status: MembershipStatus.ACTIVE,
-    },
-    {
-      athleteId: athlete7.id, // Emma Johnson (CAN)
-      organizationId: organization3.id, // USA Fencing - visiting from Canada
-      membershipType: MembershipType.VISITING_ATHLETE,
-      status: MembershipStatus.ACTIVE,
-    },
-    // European athletes - visiting/guest relationships
-    {
-      athleteId: athlete3.id, // Marie Dubois (FRA)
-      organizationId: organization1.id, // Club de Esgrima Chamartín
-      membershipType: MembershipType.GUEST,
-      status: MembershipStatus.ACTIVE,
-    },
-    {
-      athleteId: athlete3.id, // Marie Dubois (FRA)
-      organizationId: organization2.id, // Federación Española de Esgrima
-      membershipType: MembershipType.VISITING_ATHLETE,
-      status: MembershipStatus.ACTIVE,
-    },
-    {
-      athleteId: athlete8.id, // Klaus Mueller (GER)
-      organizationId: organization1.id, // Club de Esgrima Chamartín
-      membershipType: MembershipType.VISITING_ATHLETE,
-      status: MembershipStatus.ACTIVE,
-    },
-    {
-      athleteId: athlete8.id, // Klaus Mueller (GER)
-      organizationId: organization2.id, // Federación Española de Esgrima
-      membershipType: MembershipType.GUEST,
-      status: MembershipStatus.ACTIVE,
-    },
-    // Other international athletes
-    {
-      athleteId: athlete5.id, // Sofia Petrov (RUS)
-      organizationId: organization2.id, // Federación Española de Esgrima
-      membershipType: MembershipType.VISITING_ATHLETE,
-      status: MembershipStatus.ACTIVE,
-    },
-    {
-      athleteId: athlete6.id, // Hiroshi Tanaka (JPN)
-      organizationId: organization3.id, // USA Fencing
-      membershipType: MembershipType.GUEST,
-      status: MembershipStatus.ACTIVE,
-    },
-    {
-      athleteId: athlete9.id, // Liam O'Connor (GBR)
-      organizationId: organization1.id, // Club de Esgrima Chamartín
-      membershipType: MembershipType.GUEST,
-      status: MembershipStatus.ACTIVE,
-    },
-    {
-      athleteId: athlete10.id, // Carolina Silva (BRA)
-      organizationId: organization3.id, // USA Fencing
-      membershipType: MembershipType.VISITING_ATHLETE,
-      status: MembershipStatus.ACTIVE,
-    },
-  ]
-
-  for (const data of membershipData) {
-    await prisma.athleteOrganization.upsert({
-      where: {
-        athleteId_organizationId: {
-          athleteId: data.athleteId,
-          organizationId: data.organizationId
-        }
+      create: {
+        athleteId: athlete.id,
+        weapon: Weapon.EPEE,
       },
-      update: {
-        membershipType: data.membershipType,
-        status: data.status,
-      },
-      create: data
     })
-  }
 
-  console.log('✅ Created athlete-organization memberships')
-
-  // Create clubs (using upsert to handle duplicates)
-  const club1 = await prisma.club.upsert({
-    where: {
-      name_city_country: {
-        name: 'Club Esgrima Chamartín',
-        city: 'Madrid',
-        country: 'ES'
-      }
-    },
-    update: {},
-    create: {
-      name: 'Club Esgrima Chamartín',
-      city: 'Madrid',
-      country: 'ES',
-      imageUrl: 'https://pbs.twimg.com/profile_images/1118084799/cech_400x400.png',
-    },
-  })
-
-  const club2 = await prisma.club.upsert({
-    where: {
-      name_city_country: {
-        name: 'Golden Gate Fencing Club',
-        city: 'San Francisco',
-        country: 'US'
-      }
-    },
-    update: {},
-    create: {
-      name: 'Golden Gate Fencing Club',
-      city: 'San Francisco',
-      country: 'US',
-      imageUrl: 'https://ggfc.org/images/logo-red.png',
-    },
-  })
-
-  const club3 = await prisma.club.upsert({
-    where: {
-      name_city_country: {
-        name: 'Paris Escrime Club',
-        city: 'Paris',
-        country: 'FR'
-      }
-    },
-    update: {},
-    create: {
-      name: 'Paris Escrime Club',
-      city: 'Paris',
-      country: 'FR',
-      imageUrl: 'https://www.paris-cep.fr/wp-content/uploads/2018/09/logo-cep.png',
-    },
-  })
-
-  console.log('✅ Created clubs')
-
-  // Create athlete-club memberships (using upsert to handle duplicates)
-  const athleteClubData = [
-    // Spanish athletes - Ana García and others in Spanish club
-    {
-      athleteId: athlete1.id, // Ana García (ESP)
-      clubId: club1.id, // Club Esgrima Chamartín
-      membershipType: 'MEMBER',
-      status: 'ACTIVE',
-      isPrimary: true,
-    },
-    // American athletes - John Smith in Golden Gate
-    {
-      athleteId: athlete2.id, // John Smith (USA)
-      clubId: club2.id, // Golden Gate Fencing Club
-      membershipType: 'MEMBER',
-      status: 'ACTIVE',
-      isPrimary: true,
-    },
-    // French athlete - Marie Dubois in Paris club
-    {
-      athleteId: athlete3.id, // Marie Dubois (FRA)
-      clubId: club3.id, // Paris Escrime Club
-      membershipType: 'MEMBER',
-      status: 'ACTIVE',
-      isPrimary: true,
-    },
-    // Italian athlete - Paolo Rossi as guest in Spanish club
-    {
-      athleteId: athlete4.id, // Paolo Rossi (ITA)
-      clubId: club1.id, // Club Esgrima Chamartín
-      membershipType: 'GUEST',
-      status: 'ACTIVE',
-      isPrimary: true,
-    },
-    // Russian athlete - Sofia Petrov as guest in Paris
-    {
-      athleteId: athlete5.id, // Sofia Petrov (RUS)
-      clubId: club3.id, // Paris Escrime Club
-      membershipType: 'GUEST',
-      status: 'ACTIVE',
-      isPrimary: true,
-    },
-    // German athlete - Hans Mueller as guest in Spanish club
-    {
-      athleteId: athlete6.id, // Hans Mueller (DE)
-      clubId: club1.id, // Club Esgrima Chamartín
-      membershipType: 'GUEST',
-      status: 'ACTIVE',
-      isPrimary: true,
-    },
-    // Japanese athlete - Yuki Tanaka as guest in American club
-    {
-      athleteId: athlete7.id, // Yuki Tanaka (JP)
-      clubId: club2.id, // Golden Gate Fencing Club
-      membershipType: 'GUEST',
-      status: 'ACTIVE',
-      isPrimary: true,
-    },
-    // Brazilian athlete - Carlos Silva as guest in Spanish club
-    {
-      athleteId: athlete8.id, // Carlos Silva (BR)
-      clubId: club1.id, // Club Esgrima Chamartín
-      membershipType: 'GUEST',
-      status: 'ACTIVE',
-      isPrimary: true,
-    },
-    // Canadian athlete - Emma Thompson in American club
-    {
-      athleteId: athlete9.id, // Emma Thompson (CA)
-      clubId: club2.id, // Golden Gate Fencing Club
-      membershipType: 'MEMBER',
-      status: 'ACTIVE',
-      isPrimary: true,
-    },
-    // Australian athlete - James Wilson as guest in Paris club
-    {
-      athleteId: athlete10.id, // James Wilson (AU)
-      clubId: club3.id, // Paris Escrime Club
-      membershipType: 'GUEST',
-      status: 'ACTIVE',
-      isPrimary: true,
-    },
-  ]
-
-  for (const data of athleteClubData) {
+    // Create club membership
     await prisma.athleteClub.upsert({
       where: {
         athleteId_clubId: {
-          athleteId: data.athleteId,
-          clubId: data.clubId
-        }
+          athleteId: athlete.id,
+          clubId: club.id,
+        },
       },
-      update: {
-        membershipType: data.membershipType,
-        status: data.status,
-        isPrimary: data.isPrimary,
+      update: {},
+      create: {
+        athleteId: athlete.id,
+        clubId: club.id,
+        membershipType: ClubMembershipType.MEMBER,
+        status: MembershipStatus.ACTIVE,
+        isPrimary: true,
       },
-      create: data
     })
   }
 
-  console.log('✅ Created athlete-club memberships')
+  console.log(`✅ Created ${athletes.length} athletes`)
 
-  // Create club-organization affiliations (using upsert to handle duplicates)
-  await prisma.clubOrganization.upsert({
-    where: {
-      clubId_organizationId: {
-        clubId: club1.id,
-        organizationId: organization1.id
-      }
-    },
-    update: {
-      affiliationType: 'MEMBER',
-      status: 'ACTIVE',
-    },
+  // Create tournaments with different states
+  const now = new Date()
+  const pastDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) // 30 days ago
+  const futureDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+  const nearFutureDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) // 7 days from now
+
+  // Tournament 1: COMPLETED - Spanish National Championships
+  const tournament1 = await prisma.tournament.upsert({
+    where: { id: 'spanish-nationals-2024' },
+    update: {},
     create: {
-      clubId: club1.id, // Club Esgrima Chamartín
-      organizationId: organization1.id, // Club de Esgrima Chamartín (same club)
-      affiliationType: 'MEMBER',
-      status: 'ACTIVE',
-    },
-  })
-
-  await prisma.clubOrganization.upsert({
-    where: {
-      clubId_organizationId: {
-        clubId: club1.id,
-        organizationId: organization2.id
-      }
-    },
-    update: {
-      affiliationType: 'MEMBER',
-      status: 'ACTIVE',
-    },
-    create: {
-      clubId: club1.id, // Club Esgrima Chamartín
-      organizationId: organization2.id, // Federación Española de Esgrima
-      affiliationType: 'MEMBER',
-      status: 'ACTIVE',
-    },
-  })
-
-  await prisma.clubOrganization.upsert({
-    where: {
-      clubId_organizationId: {
-        clubId: club2.id,
-        organizationId: organization3.id
-      }
-    },
-    update: {
-      affiliationType: 'MEMBER',
-      status: 'ACTIVE',
-    },
-    create: {
-      clubId: club2.id, // Golden Gate Fencing Club
-      organizationId: organization3.id, // USA Fencing
-      affiliationType: 'MEMBER',
-      status: 'ACTIVE',
-    },
-  })
-
-  // Make Paris club available to Spanish federation as international partner
-  await prisma.clubOrganization.upsert({
-    where: {
-      clubId_organizationId: {
-        clubId: club3.id,
-        organizationId: organization2.id
-      }
-    },
-    update: {
-      affiliationType: 'PARTNER',
-      status: 'ACTIVE',
-    },
-    create: {
-      clubId: club3.id, // Paris Escrime Club
-      organizationId: organization2.id, // Federación Española de Esgrima
-      affiliationType: 'PARTNER',
-      status: 'ACTIVE',
-    },
-  })
-
-  console.log('✅ Created club-organization affiliations')
-
-  // Create demo tournaments (new architecture)
-  const tournament1 = await prisma.tournament.create({
-    data: {
-      name: 'Copa de Navidad 2024',
-      description: 'Annual Christmas tournament featuring multiple weapon competitions',
-      startDate: new Date('2024-12-15T09:00:00.000Z'),
-      endDate: new Date('2024-12-15T20:00:00.000Z'),
-      venue: 'Polideportivo Municipal Madrid',
-      status: TournamentStatus.REGISTRATION_OPEN,
-      isActive: true,
+      id: 'spanish-nationals-2024',
+      name: 'Campeonato Nacional de España 2024',
+      description: 'Annual Spanish National Fencing Championships featuring all weapons and categories.',
+      startDate: new Date('2024-06-15'),
+      endDate: new Date('2024-06-17'),
+      venue: 'Palacio de Deportes de Madrid',
+      status: TournamentStatus.COMPLETED,
       isPublic: true,
-      organizationId: organization1.id, // Club de Esgrima Chamartín
+      isActive: false,
+      organizationId: organization1.id,
       createdById: orgAdmin1.id,
     },
   })
 
-  const tournament2 = await prisma.tournament.create({
-    data: {
-      name: 'Campeonato Nacional de España',
-      description: 'Spanish National Championship - all weapons and categories',
-      startDate: new Date('2024-11-20T08:00:00.000Z'),
-      endDate: new Date('2024-11-22T18:00:00.000Z'),
-      venue: 'Centro Nacional de Esgrima, Madrid',
+  // Tournament 2: IN_PROGRESS - International Open
+  const tournament2 = await prisma.tournament.upsert({
+    where: { id: 'madrid-international-open' },
+    update: {},
+    create: {
+      id: 'madrid-international-open',
+      name: 'Madrid International Open',
+      description: 'International fencing tournament open to all FIE-licensed athletes. Features épée and foil competitions.',
+      startDate: nearFutureDate,
+      endDate: new Date(nearFutureDate.getTime() + 2 * 24 * 60 * 60 * 1000),
+      venue: 'Centro Deportivo Municipal Chamartín',
       status: TournamentStatus.IN_PROGRESS,
-      isActive: false,
       isPublic: true,
-      organizationId: organization2.id, // Federación Española de Esgrima
+      isActive: true,
+      organizationId: organization2.id,
       createdById: orgAdmin2.id,
     },
   })
 
-  const tournament3 = await prisma.tournament.create({
-    data: {
-      name: 'USA National Championships',
-      description: 'Annual USA Fencing National Championships',
-      startDate: new Date('2024-07-01T08:00:00.000Z'),
-      endDate: new Date('2024-07-07T20:00:00.000Z'),
-      venue: 'Salt Palace Convention Center, Salt Lake City',
-      status: TournamentStatus.COMPLETED,
-      isActive: false,
-      isPublic: true,
-      organizationId: organization3.id, // USA Fencing
+  // Tournament 3: REGISTRATION_OPEN - Club Championship
+  const tournament3 = await prisma.tournament.upsert({
+    where: { id: 'chamartin-club-championship' },
+    update: {},
+    create: {
+      id: 'chamartin-club-championship',
+      name: 'Campeonato del Club Chamartín',
+      description: 'Annual club championship for Chamartín members. All weapons and age categories welcome.',
+      startDate: futureDate,
+      endDate: new Date(futureDate.getTime() + 1 * 24 * 60 * 60 * 1000),
+      venue: 'Instalaciones Club Chamartín',
+      status: TournamentStatus.REGISTRATION_OPEN,
+      isPublic: false,
+      isActive: true,
+      organizationId: organization3.id,
       createdById: orgAdmin3.id,
+    },
+  })
+
+  // Tournament 4: DRAFT - World Championships
+  const tournament4 = await prisma.tournament.upsert({
+    where: { id: 'world-championships-2025' },
+    update: {},
+    create: {
+      id: 'world-championships-2025',
+      name: 'World Fencing Championships 2025',
+      description: 'The premier international fencing competition featuring individual and team events in all three weapons.',
+      startDate: new Date('2025-07-15'),
+      endDate: new Date('2025-07-25'),
+      venue: 'Palau de la Música Catalana, Barcelona',
+      status: TournamentStatus.DRAFT,
+      isPublic: true,
+      isActive: true,
+      organizationId: organization2.id,
+      createdById: orgAdmin2.id,
+    },
+  })
+
+  // Tournament 5: CANCELLED - Regional Championship
+  const tournament5 = await prisma.tournament.upsert({
+    where: { id: 'madrid-regional-cancelled' },
+    update: {},
+    create: {
+      id: 'madrid-regional-cancelled',
+      name: 'Campeonato Regional de Madrid',
+      description: 'Regional championship that was cancelled due to venue issues.',
+      startDate: new Date('2024-05-20'),
+      endDate: new Date('2024-05-22'),
+      venue: 'Polideportivo Municipal',
+      status: TournamentStatus.CANCELLED,
+      isPublic: true,
+      isActive: false,
+      organizationId: organization1.id,
+      createdById: orgAdmin1.id,
     },
   })
 
   console.log('✅ Created tournaments')
 
-  // Create competitions within tournaments
-  const competition1 = await prisma.competition.create({
+  // Create competitions for each tournament
+  const competitions = []
+
+  // Tournament 1 competitions (COMPLETED)
+  const comp1_1 = await prisma.competition.create({
     data: {
-      tournamentId: tournament1.id,
-      name: 'Epee Senior Men',
+      id: 'spanish-nationals-epee-men',
+      name: 'Épée Masculino Absoluto',
       weapon: Weapon.EPEE,
       category: 'Senior Men',
-      status: CompetitionStatus.REGISTRATION_OPEN,
+      maxParticipants: 64,
+      registrationDeadline: new Date('2024-06-10'),
+      status: CompetitionStatus.COMPLETED,
+      tournamentId: tournament1.id,
+    },
+  })
+
+  const comp1_2 = await prisma.competition.create({
+    data: {
+      id: 'spanish-nationals-epee-women',
+      name: 'Épée Femenino Absoluto',
+      weapon: Weapon.EPEE,
+      category: 'Senior Women',
+      maxParticipants: 48,
+      registrationDeadline: new Date('2024-06-10'),
+      status: CompetitionStatus.COMPLETED,
+      tournamentId: tournament1.id,
+    },
+  })
+
+  const comp1_3 = await prisma.competition.create({
+    data: {
+      id: 'spanish-nationals-foil-men',
+      name: 'Florete Masculino Absoluto',
+      weapon: Weapon.FOIL,
+      category: 'Senior Men',
+      maxParticipants: 56,
+      registrationDeadline: new Date('2024-06-10'),
+      status: CompetitionStatus.COMPLETED,
+      tournamentId: tournament1.id,
+    },
+  })
+
+  // Tournament 2 competitions (IN_PROGRESS)
+  const comp2_1 = await prisma.competition.create({
+    data: {
+      id: 'madrid-open-epee-open',
+      name: 'Épée Open',
+      weapon: Weapon.EPEE,
+      category: 'Open',
+      maxParticipants: 80,
+      registrationDeadline: new Date(nearFutureDate.getTime() - 2 * 24 * 60 * 60 * 1000),
+      status: CompetitionStatus.IN_PROGRESS,
+      tournamentId: tournament2.id,
+    },
+  })
+
+  const comp2_2 = await prisma.competition.create({
+    data: {
+      id: 'madrid-open-foil-open',
+      name: 'Florete Open',
+      weapon: Weapon.FOIL,
+      category: 'Open',
+      maxParticipants: 64,
+      registrationDeadline: new Date(nearFutureDate.getTime() - 2 * 24 * 60 * 60 * 1000),
+      status: CompetitionStatus.IN_PROGRESS,
+      tournamentId: tournament2.id,
+    },
+  })
+
+  const comp2_3 = await prisma.competition.create({
+    data: {
+      id: 'madrid-open-epee-veterans',
+      name: 'Épée Veteranos',
+      weapon: Weapon.EPEE,
+      category: 'Veterans',
       maxParticipants: 32,
+      registrationDeadline: new Date(nearFutureDate.getTime() - 2 * 24 * 60 * 60 * 1000),
+      status: CompetitionStatus.REGISTRATION_OPEN,
+      tournamentId: tournament2.id,
     },
   })
 
-  const competition2 = await prisma.competition.create({
+  // Tournament 3 competitions (REGISTRATION_OPEN)
+  const comp3_1 = await prisma.competition.create({
     data: {
-      tournamentId: tournament1.id,
-      name: 'Epee Senior Women',
+      id: 'chamartin-club-epee',
+      name: 'Épée Club Championship',
+      weapon: Weapon.EPEE,
+      category: 'Club Members',
+      maxParticipants: 40,
+      registrationDeadline: new Date(futureDate.getTime() - 7 * 24 * 60 * 60 * 1000),
+      status: CompetitionStatus.REGISTRATION_OPEN,
+      tournamentId: tournament3.id,
+    },
+  })
+
+  const comp3_2 = await prisma.competition.create({
+    data: {
+      id: 'chamartin-club-foil',
+      name: 'Florete Club Championship',
+      weapon: Weapon.FOIL,
+      category: 'Club Members',
+      maxParticipants: 32,
+      registrationDeadline: new Date(futureDate.getTime() - 7 * 24 * 60 * 60 * 1000),
+      status: CompetitionStatus.REGISTRATION_OPEN,
+      tournamentId: tournament3.id,
+    },
+  })
+
+  const comp3_3 = await prisma.competition.create({
+    data: {
+      id: 'chamartin-club-sabre',
+      name: 'Sable Club Championship',
+      weapon: Weapon.SABRE,
+      category: 'Club Members',
+      maxParticipants: 24,
+      registrationDeadline: new Date(futureDate.getTime() - 7 * 24 * 60 * 60 * 1000),
+      status: CompetitionStatus.REGISTRATION_OPEN,
+      tournamentId: tournament3.id,
+    },
+  })
+
+  // Tournament 4 competitions (DRAFT)
+  const comp4_1 = await prisma.competition.create({
+    data: {
+      id: 'worlds-2025-epee-men',
+      name: 'Men\'s Épée Individual',
+      weapon: Weapon.EPEE,
+      category: 'Senior Men',
+      maxParticipants: 200,
+      registrationDeadline: new Date('2025-06-15'),
+      status: CompetitionStatus.DRAFT,
+      tournamentId: tournament4.id,
+    },
+  })
+
+  const comp4_2 = await prisma.competition.create({
+    data: {
+      id: 'worlds-2025-epee-women',
+      name: 'Women\'s Épée Individual',
       weapon: Weapon.EPEE,
       category: 'Senior Women',
-      status: CompetitionStatus.REGISTRATION_OPEN,
-      maxParticipants: 24,
+      maxParticipants: 180,
+      registrationDeadline: new Date('2025-06-15'),
+      status: CompetitionStatus.DRAFT,
+      tournamentId: tournament4.id,
     },
   })
 
-  const competition3 = await prisma.competition.create({
+  const comp4_3 = await prisma.competition.create({
     data: {
-      tournamentId: tournament1.id,
-      name: 'Foil Senior Mixed',
+      id: 'worlds-2025-foil-men',
+      name: 'Men\'s Foil Individual',
       weapon: Weapon.FOIL,
-      category: 'Senior Mixed',
-      status: CompetitionStatus.REGISTRATION_OPEN,
-      maxParticipants: 40,
+      category: 'Senior Men',
+      maxParticipants: 200,
+      registrationDeadline: new Date('2025-06-15'),
+      status: CompetitionStatus.DRAFT,
+      tournamentId: tournament4.id,
     },
   })
 
-  const competition4 = await prisma.competition.create({
+  const comp4_4 = await prisma.competition.create({
     data: {
-      tournamentId: tournament2.id,
-      name: 'Sabre Senior Men',
+      id: 'worlds-2025-foil-women',
+      name: 'Women\'s Foil Individual',
+      weapon: Weapon.FOIL,
+      category: 'Senior Women',
+      maxParticipants: 180,
+      registrationDeadline: new Date('2025-06-15'),
+      status: CompetitionStatus.DRAFT,
+      tournamentId: tournament4.id,
+    },
+  })
+
+  const comp4_5 = await prisma.competition.create({
+    data: {
+      id: 'worlds-2025-sabre-men',
+      name: 'Men\'s Sabre Individual',
       weapon: Weapon.SABRE,
       category: 'Senior Men',
-      status: CompetitionStatus.IN_PROGRESS,
-      maxParticipants: 28,
+      maxParticipants: 200,
+      registrationDeadline: new Date('2025-06-15'),
+      status: CompetitionStatus.DRAFT,
+      tournamentId: tournament4.id,
     },
   })
 
-  const competition5 = await prisma.competition.create({
+  const comp4_6 = await prisma.competition.create({
     data: {
-      tournamentId: tournament2.id,
-      name: 'Sabre Senior Women',
+      id: 'worlds-2025-sabre-women',
+      name: 'Women\'s Sabre Individual',
       weapon: Weapon.SABRE,
       category: 'Senior Women',
-      status: CompetitionStatus.IN_PROGRESS,
-      maxParticipants: 20,
+      maxParticipants: 180,
+      registrationDeadline: new Date('2025-06-15'),
+      status: CompetitionStatus.DRAFT,
+      tournamentId: tournament4.id,
     },
   })
 
-  const competition6 = await prisma.competition.create({
+  // Tournament 5 competitions (CANCELLED)
+  const comp5_1 = await prisma.competition.create({
     data: {
-      tournamentId: tournament3.id,
-      name: 'Foil U17 Men',
-      weapon: Weapon.FOIL,
-      category: 'U17 Men',
-      status: CompetitionStatus.COMPLETED,
-      maxParticipants: 16,
-    },
-  })
-
-  const competition7 = await prisma.competition.create({
-    data: {
-      tournamentId: tournament3.id,
-      name: 'Epee U20 Women',
+      id: 'madrid-regional-cancelled-epee',
+      name: 'Épée Regional',
       weapon: Weapon.EPEE,
-      category: 'U20 Women',
-      status: CompetitionStatus.COMPLETED,
-      maxParticipants: 12,
+      category: 'Regional',
+      maxParticipants: 50,
+      registrationDeadline: new Date('2024-05-15'),
+      status: CompetitionStatus.CANCELLED,
+      tournamentId: tournament5.id,
     },
   })
 
-  console.log('✅ Created competitions')
+  competitions.push(comp1_1, comp1_2, comp1_3, comp2_1, comp2_2, comp2_3, comp3_1, comp3_2, comp3_3, comp4_1, comp4_2, comp4_3, comp4_4, comp4_5, comp4_6, comp5_1)
 
-  // Create phases for competitions
+  console.log(`✅ Created ${competitions.length} competitions`)
+
+  // Create registrations for active competitions
+  const registrations = []
+
+  // Register athletes for Madrid Open competitions (active tournament)
+  const madridOpenCompetitions = [comp2_1, comp2_2, comp2_3]
+  for (const competition of madridOpenCompetitions) {
+    const maxRegistrations = Math.min(competition.maxParticipants || 32, athletes.length)
+    const registrationCount = Math.floor(maxRegistrations * 0.8) // 80% registration rate
+    
+    for (let i = 0; i < registrationCount; i++) {
+      const athlete = athletes[i]
+      const registration = await prisma.competitionRegistration.create({
+        data: {
+          competitionId: competition.id,
+          athleteId: athlete.id,
+          seedNumber: i + 1,
+          isPresent: Math.random() > 0.1, // 90% presence rate
+          status: RegistrationStatus.CONFIRMED,
+          registeredAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000), // Random registration within last week
+        },
+      })
+      registrations.push(registration)
+    }
+  }
+
+  // Register some athletes for club championships (registration open)
+  const clubCompetitions = [comp3_1, comp3_2, comp3_3]
+  for (const competition of clubCompetitions) {
+    const maxRegistrations = Math.min(competition.maxParticipants || 24, 15) // Limit to Chamartín athletes
+    const chamartinAthletes = athletes.filter(a => a.firstName === 'Ana' || a.firstName === 'Carlos' || a.firstName === 'María' || a.firstName === 'David' || a.firstName === 'Laura')
+    
+    for (let i = 0; i < Math.min(maxRegistrations, chamartinAthletes.length); i++) {
+      const athlete = chamartinAthletes[i]
+      const registration = await prisma.competitionRegistration.create({
+        data: {
+          competitionId: competition.id,
+          athleteId: athlete.id,
+          seedNumber: i + 1,
+          isPresent: false, // Future tournament
+          status: RegistrationStatus.CONFIRMED,
+          registeredAt: new Date(Date.now() - Math.random() * 14 * 24 * 60 * 60 * 1000), // Random registration within last 2 weeks
+        },
+      })
+      registrations.push(registration)
+    }
+  }
+
+  console.log(`✅ Created ${registrations.length} registrations`)
+
+  // Create phases for some competitions
+  const phases = []
+
+  // Create phases for the active Madrid Open Épée competition
   const phase1 = await prisma.phase.create({
     data: {
-      competitionId: competition1.id,
-      name: 'Poules',
+      name: 'Poules Qualification',
       phaseType: PhaseType.POULE,
+      status: PhaseStatus.ACTIVE,
       sequenceOrder: 1,
-      status: PhaseStatus.SCHEDULED,
+      competitionId: comp2_1.id,
+      qualificationQuota: 24,
+      qualificationPercentage: 60,
+      pouleSizeVariations: JSON.stringify([
+        { size: 7, count: 5 },
+        { size: 5, count: 1 }
+      ]),
+      separationRules: JSON.stringify({
+        byClub: true,
+        byNationality: true,
+        priority: ['club', 'nationality']
+      }),
+      configuration: JSON.stringify({
+        touchLimit: 5,
+        timeLimit: 180,
+        doubleHitsAllowed: true
+      }),
     },
   })
 
   const phase2 = await prisma.phase.create({
     data: {
-      competitionId: competition1.id,
       name: 'Direct Elimination',
       phaseType: PhaseType.DIRECT_ELIMINATION,
+      status: PhaseStatus.PENDING,
       sequenceOrder: 2,
-      status: PhaseStatus.SCHEDULED,
+      competitionId: comp2_1.id,
+      qualificationQuota: 1,
+      qualificationPercentage: null,
+      configuration: JSON.stringify({
+        touchLimit: 15,
+        timeLimit: 540,
+        doubleHitsAllowed: false,
+        format: 'single_elimination',
+        thirdPlaceMatch: true
+      }),
     },
   })
 
-  const phase3 = await prisma.phase.create({
-    data: {
-      competitionId: competition4.id,
-      name: 'Poules',
-      phaseType: PhaseType.POULE,
-      sequenceOrder: 1,
-      status: PhaseStatus.IN_PROGRESS,
-    },
-  })
+  phases.push(phase1, phase2)
 
-  const phase4 = await prisma.phase.create({
-    data: {
-      competitionId: competition4.id,
-      name: 'Classification',
-      phaseType: PhaseType.CLASSIFICATION,
-      sequenceOrder: 2,
-      status: PhaseStatus.SCHEDULED,
-    },
-  })
+  console.log(`✅ Created ${phases.length} phases`)
 
-  console.log('✅ Created phases')
-
-  // Create translations for organizations
-  await prisma.organizationTranslation.createMany({
-    data: [
-      // Madrid Fencing Club translations
-      {
-        organizationId: organization1.id,
-        locale: 'en',
-        name: 'Madrid Fencing Club',
-        displayName: 'Madrid Fencing Club',
-        description: 'Premier fencing organization in Madrid, Spain'
-      },
-      {
-        organizationId: organization1.id,
-        locale: 'es',
-        name: 'Club de Esgrima Madrid',
-        displayName: 'Club de Esgrima Madrid',
-        description: 'Organización de esgrima premier en Madrid, España'
-      },
-      {
-        organizationId: organization1.id,
-        locale: 'fr',
-        name: 'Club d\'Escrime de Madrid',
-        displayName: 'Club d\'Escrime de Madrid',
-        description: 'Organisation d\'escrime de premier plan à Madrid, Espagne'
-      },
-      // San Francisco Fencing Academy translations
-      {
-        organizationId: organization2.id,
-        locale: 'en',
-        name: 'San Francisco Fencing Academy',
-        displayName: 'SF Fencing Academy',
-        description: 'Elite fencing training in the Bay Area'
-      },
-      {
-        organizationId: organization2.id,
-        locale: 'es',
-        name: 'Academia de Esgrima de San Francisco',
-        displayName: 'Academia de Esgrima SF',
-        description: 'Entrenamiento de esgrima de élite en el Área de la Bahía'
-      },
-      {
-        organizationId: organization2.id,
-        locale: 'fr',
-        name: 'Académie d\'Escrime de San Francisco',
-        displayName: 'Académie d\'Escrime SF',
-        description: 'Formation d\'escrime d\'élite dans la région de la baie'
-      }
-    ]
-  })
-
-  // Create translations for clubs
-  await prisma.clubTranslation.createMany({
-    data: [
-      // Club Esgrima Chamartín translations
-      { clubId: club1.id, locale: 'en', name: 'Chamartín Fencing Club' },
-      { clubId: club1.id, locale: 'es', name: 'Club Esgrima Chamartín' },
-      { clubId: club1.id, locale: 'fr', name: 'Club d\'Escrime Chamartín' },
-      // Golden Gate Fencing Club translations
-      { clubId: club2.id, locale: 'en', name: 'Golden Gate Fencing Club' },
-      { clubId: club2.id, locale: 'es', name: 'Club de Esgrima Golden Gate' },
-      { clubId: club2.id, locale: 'fr', name: 'Club d\'Escrime Golden Gate' }
-    ]
-  })
-
-  // Create translations for tournaments
-  await prisma.tournamentTranslation.createMany({
-    data: [
-      // Copa de Navidad 2024 translations
-      {
-        tournamentId: tournament1.id,
-        locale: 'en',
-        name: 'Christmas Cup 2024',
-        description: 'Annual Christmas tournament featuring multiple weapon competitions'
-      },
-      {
-        tournamentId: tournament1.id,
-        locale: 'es',
-        name: 'Copa de Navidad 2024',
-        description: 'Torneo anual de Navidad con competiciones de múltiples armas'
-      },
-      {
-        tournamentId: tournament1.id,
-        locale: 'fr',
-        name: 'Coupe de Noël 2024',
-        description: 'Tournoi annuel de Noël avec des compétitions d\'armes multiples'
-      },
-      // Bay Area Regional Championship translations
-      {
-        tournamentId: tournament2.id,
-        locale: 'en',
-        name: 'Bay Area Regional Championship',
-        description: 'Regional championship for senior fencers in the San Francisco Bay Area'
-      },
-      {
-        tournamentId: tournament2.id,
-        locale: 'es',
-        name: 'Campeonato Regional del Área de la Bahía',
-        description: 'Campeonato regional para esgrimistas senior en el Área de la Bahía de San Francisco'
-      },
-      {
-        tournamentId: tournament2.id,
-        locale: 'fr',
-        name: 'Championnat Régional de la Baie',
-        description: 'Championnat régional pour les escrimeurs seniors de la région de la baie de San Francisco'
-      },
-      // Madrid Youth Open 2024 translations
-      {
-        tournamentId: tournament3.id,
-        locale: 'en',
-        name: 'Madrid Youth Open 2024',
-        description: 'Open tournament for youth fencers (U17 and U20 categories)'
-      },
-      {
-        tournamentId: tournament3.id,
-        locale: 'es',
-        name: 'Abierto Juvenil de Madrid 2024',
-        description: 'Torneo abierto para esgrimistas jóvenes (categorías U17 y U20)'
-      },
-      {
-        tournamentId: tournament3.id,
-        locale: 'fr',
-        name: 'Open Jeunesse de Madrid 2024',
-        description: 'Tournoi ouvert pour les jeunes escrimeurs (catégories U17 et U20)'
-      }
-    ]
-  })
-
-  // Create audit log translations for common actions
-  await prisma.auditLogTranslation.createMany({
-    data: [
-      // Score update translations
-      { actionKey: 'SCORE_UPDATE', locale: 'en', description: 'Score updated' },
-      { actionKey: 'SCORE_UPDATE', locale: 'es', description: 'Puntuación actualizada' },
-      { actionKey: 'SCORE_UPDATE', locale: 'fr', description: 'Score mis à jour' },
-      // Match start translations
-      { actionKey: 'MATCH_START', locale: 'en', description: 'Match started' },
-      { actionKey: 'MATCH_START', locale: 'es', description: 'Combate iniciado' },
-      { actionKey: 'MATCH_START', locale: 'fr', description: 'Match commencé' },
-      // Match end translations
-      { actionKey: 'MATCH_END', locale: 'en', description: 'Match ended' },
-      { actionKey: 'MATCH_END', locale: 'es', description: 'Combate finalizado' },
-      { actionKey: 'MATCH_END', locale: 'fr', description: 'Match terminé' },
-      // Athlete withdrawal translations
-      { actionKey: 'ATHLETE_WITHDRAWAL', locale: 'en', description: 'Athlete withdrew from event' },
-      { actionKey: 'ATHLETE_WITHDRAWAL', locale: 'es', description: 'Atleta se retiró del evento' },
-      { actionKey: 'ATHLETE_WITHDRAWAL', locale: 'fr', description: 'Athlète s\'est retiré de l\'événement' },
-      // Tournament creation translations
-      { actionKey: 'TOURNAMENT_CREATED', locale: 'en', description: 'Tournament created' },
-      { actionKey: 'TOURNAMENT_CREATED', locale: 'es', description: 'Torneo creado' },
-      { actionKey: 'TOURNAMENT_CREATED', locale: 'fr', description: 'Tournoi créé' },
-      // User registration translations
-      { actionKey: 'USER_REGISTERED', locale: 'en', description: 'User registered' },
-      { actionKey: 'USER_REGISTERED', locale: 'es', description: 'Usuario registrado' },
-      { actionKey: 'USER_REGISTERED', locale: 'fr', description: 'Utilisateur enregistré' }
-    ]
-  })
-
-  console.log('✅ Created translations for organizations, clubs, tournaments, and audit actions')
-
-  // Create global rankings
-  await prisma.globalRanking.create({
-    data: {
-      athleteId: athlete1.id,
-      weapon: Weapon.EPEE,
-      category: 'Senior Women',
-      rank: 1,
-      points: 1250,
-      victories: 45,
-      matches: 52,
-      touchesScored: 234,
-      touchesReceived: 198,
-      indicator: 36,
-      season: '2024-2025',
-    },
-  })
+  console.log('🎉 Database seeding completed successfully!')
+  console.log(`
+  📊 Summary:
+  - ${clubData.length} clubs created
+  - ${athleteData.length} athletes created
+  - 5 tournaments created (different statuses)
+  - ${competitions.length} competitions created
+  - ${registrations.length} registrations created
+  - ${phases.length} phases created
   
-  await prisma.globalRanking.create({
-    data: {
-      athleteId: athlete2.id,
-      weapon: Weapon.SABRE,
-      category: 'Senior Men',
-      rank: 3,
-      points: 980,
-      victories: 38,
-      matches: 48,
-      touchesScored: 201,
-      touchesReceived: 165,
-      indicator: 36,
-      season: '2024-2025',
-    },
-  })
-
-  await prisma.globalRanking.create({
-    data: {
-      athleteId: athlete4.id,
-      weapon: Weapon.FOIL,
-      category: 'Senior Men',
-      rank: 5,
-      points: 875,
-      victories: 42,
-      matches: 50,
-      touchesScored: 189,
-      touchesReceived: 142,
-      indicator: 47,
-      season: '2024-2025',
-    },
-  })
-
-  console.log('✅ Created global rankings')
-
-  console.log('🎉 Multi-tenant seeding completed!')
-  console.log('\n📋 Demo Users:')
-  console.log('System Admin: admin@enguardia.com')
-  console.log('Club Admin: admin@escrimachamartin.es')
-  console.log('Spanish Fed Admin: admin@esgrima.es')
-  console.log('USA Fed Admin: admin@usafencing.org')
-  console.log('Club Referee: referee@escrimachamartin.es')
-  console.log('Spanish Fed Referee: referee@esgrima.es')
-  console.log('USA Fed Referee: referee@usafencing.org')
-  console.log('\n🏢 Organizations:')
-  console.log('1. Club de Esgrima Chamartín (org-demo-1) - Local fencing club')
-  console.log('2. Federación Española de Esgrima (org-demo-2) - Spanish national federation')
-  console.log('3. USA Fencing (org-demo-3) - USA national federation')
-  console.log('\n🏆 Tournaments:')
-  console.log('1. Copa de Navidad 2024 (Club Chamartín) - ACTIVE, Registration Open')
-  console.log('   ├─ Epee Senior Men (32 max)')
-  console.log('   ├─ Epee Senior Women (24 max)')
-  console.log('   └─ Foil Senior Mixed (40 max)')
-  console.log('2. Campeonato Nacional de España (Spanish Fed) - In Progress')
-  console.log('   ├─ Sabre Senior Men (28 max)')
-  console.log('   └─ Sabre Senior Women (20 max)')
-  console.log('3. USA National Championships (USA Fed) - COMPLETED')
-  console.log('   ├─ Foil U17 Men (16 max)')
-  console.log('   └─ Epee U20 Women (12 max)')
-  console.log('\n🤺 Athletes (with realistic federation/club relationships):')
-  console.log('Ana García (ESP) 🇪🇸 - Epee/Foil - Member of Club Chamartín & Spanish Fed')
-  console.log('John Smith (USA) 🇺🇸 - Sabre - Member of USA Fencing')  
-  console.log('Marie Dubois (FRA) 🇫🇷 - Epee - Guest at Club Chamartín, Visiting Spanish Fed')
-  console.log('Paolo Rossi (ITA) 🇮🇹 - Foil - Member of Club Chamartín')
-  console.log('Sofia Petrov (RUS) 🇷🇺 - Sabre - Visiting Spanish Fed')
-  console.log('+ 5 more international athletes with diverse affiliations')
+  🏆 Tournaments created:
+  1. Spanish Nationals 2024 (COMPLETED) - 3 competitions
+  2. Madrid International Open (IN_PROGRESS) - 3 competitions
+  3. Chamartín Club Championship (REGISTRATION_OPEN) - 3 competitions
+  4. World Championships 2025 (DRAFT) - 6 competitions
+  5. Madrid Regional (CANCELLED) - 1 competition
+  `)
 }
 
 main()

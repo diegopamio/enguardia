@@ -191,7 +191,7 @@ export default function CompetitionForm({
             disabled={isLoading}
           >
             <option value="">Select a tournament</option>
-            {tournaments.map((tournament) => (
+            {tournaments?.map((tournament) => (
               <option key={tournament.id} value={tournament.id}>
                 {tournament.name}
               </option>
