@@ -50,6 +50,23 @@ interface Competition {
     phaseType: string
     status: string
     sequenceOrder: number
+    startTime?: string
+    endTime?: string
+    qualificationQuota?: number
+    qualificationPercentage?: number
+    qualificationRules?: any
+    pouleSizeVariations?: any
+    separationRules?: any
+    configuration?: any
+    poules?: Array<{
+      id: string
+      number: number
+      assignments: Array<{
+        id: string
+        athleteId: string
+        position: number
+      }>
+    }>
   }>
 }
 
@@ -70,6 +87,39 @@ const statusColors = {
   IN_PROGRESS: 'bg-blue-100 text-blue-800',
   COMPLETED: 'bg-green-100 text-green-800',
   CANCELLED: 'bg-red-100 text-red-800'
+}
+
+const formatPhaseType = (phaseType: string) => {
+  switch (phaseType) {
+    case 'POULE': return 'Round Robin Poules'
+    case 'DIRECT_ELIMINATION': return 'Direct Elimination'
+    case 'CLASSIFICATION': return 'Classification'
+    case 'REPECHAGE': return 'Repechage'
+    default: return phaseType.replace('_', ' ')
+  }
+}
+
+const calculatePouleStats = (phase: any) => {
+  if (!phase.poules || phase.poules.length === 0) {
+    return null
+  }
+
+  const totalPoules = phase.poules.length
+  const pouleSizes = phase.poules.map((poule: any) => poule.assignments?.length || 0)
+  const totalAthletes = pouleSizes.reduce((sum: number, size: number) => sum + size, 0)
+  const avgPouleSize = totalAthletes / totalPoules
+  const minPouleSize = Math.min(...pouleSizes)
+  const maxPouleSize = Math.max(...pouleSizes)
+
+  return {
+    totalPoules,
+    totalAthletes,
+    avgPouleSize: Math.round(avgPouleSize * 10) / 10,
+    minPouleSize,
+    maxPouleSize,
+    pouleSizes,
+    isUniformSize: minPouleSize === maxPouleSize
+  }
 }
 
 export default function CompetitionView({ competitionId }: CompetitionViewProps) {
@@ -301,29 +351,257 @@ export default function CompetitionView({ competitionId }: CompetitionViewProps)
                 </div>
               </div>
 
-              {/* Phases */}
+              {/* Formula Configuration */}
               {competition.phases && competition.phases.length > 0 && (
                 <div className="bg-white shadow rounded-lg">
                   <div className="px-6 py-4 border-b border-gray-200">
-                    <h2 className="text-lg font-semibold text-gray-900">Competition Phases</h2>
+                    <h2 className="text-lg font-semibold text-gray-900">Tournament Formula</h2>
                   </div>
                   <div className="px-6 py-4">
-                    <div className="space-y-3">
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <dt className="font-medium text-gray-500">Total Phases</dt>
+                          <dd className="mt-1 text-gray-900">{competition.phases.length}</dd>
+                        </div>
+                        <div>
+                          <dt className="font-medium text-gray-500">Format</dt>
+                          <dd className="mt-1 text-gray-900">
+                            {competition.phases.map(p => formatPhaseType(p.phaseType)).join(' → ')}
+                          </dd>
+                        </div>
+                      </div>
+                      
+                      {/* Formula Summary */}
+                      <div className="border-t pt-4">
+                        <h4 className="text-sm font-medium text-gray-900 mb-2">Formula Summary</h4>
+                        <div className="space-y-2 text-sm text-gray-600">
+                          {competition.phases.map((phase, index) => {
+                            const pouleStats = calculatePouleStats(phase)
+                            return (
+                              <div key={phase.id} className="flex items-center space-x-2 flex-wrap">
+                                <span className="font-medium text-gray-900">{index + 1}.</span>
+                                <span>{phase.name}</span>
+                                <span className="text-gray-400">({formatPhaseType(phase.phaseType)})</span>
+                                
+                                {/* Poule Statistics */}
+                                {pouleStats && (
+                                  <div className="flex items-center space-x-1">
+                                    <span className="text-blue-600 text-xs bg-blue-50 px-2 py-1 rounded">
+                                      {pouleStats.totalPoules} poule{pouleStats.totalPoules !== 1 ? 's' : ''}
+                                    </span>
+                                    <span className="text-purple-600 text-xs bg-purple-50 px-2 py-1 rounded">
+                                      {pouleStats.isUniformSize ? 
+                                        `${pouleStats.minPouleSize} fencers each` :
+                                        `${pouleStats.minPouleSize}-${pouleStats.maxPouleSize} fencers`
+                                      }
+                                    </span>
+                                    <span className="text-gray-600 text-xs bg-gray-50 px-2 py-1 rounded">
+                                      {pouleStats.totalAthletes} total
+                                    </span>
+                                  </div>
+                                )}
+                                
+                                {/* Qualification Info */}
+                                {phase.qualificationQuota && (
+                                  <span className="text-green-600 text-xs bg-green-50 px-2 py-1 rounded">
+                                    Top {phase.qualificationQuota} advance
+                                  </span>
+                                )}
+                                {phase.qualificationPercentage && (
+                                  <span className="text-green-600 text-xs bg-green-50 px-2 py-1 rounded">
+                                    Top {Math.round(phase.qualificationPercentage * 100)}% advance
+                                  </span>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Detailed Phases Information */}
+              {competition.phases && competition.phases.length > 0 && (
+                <div className="bg-white shadow rounded-lg">
+                  <div className="px-6 py-4 border-b border-gray-200">
+                    <h2 className="text-lg font-semibold text-gray-900">Phase Configuration</h2>
+                  </div>
+                  <div className="px-6 py-4">
+                    <div className="space-y-4">
                       {competition.phases
                         .sort((a, b) => a.sequenceOrder - b.sequenceOrder)
-                        .map((phase) => (
-                          <div key={phase.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div>
-                              <div className="font-medium text-gray-900">{phase.name}</div>
-                              <div className="text-sm text-gray-600">{phase.phaseType}</div>
+                        .map((phase, index) => (
+                          <div key={phase.id} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                            {/* Phase Header */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <span className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                                  {index + 1}
+                                </span>
+                                <div>
+                                  <h4 className="font-medium text-gray-900">{phase.name}</h4>
+                                  <p className="text-sm text-gray-600">{formatPhaseType(phase.phaseType)}</p>
+                                </div>
+                              </div>
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                phase.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                                phase.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
+                                phase.status === 'SCHEDULED' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {phase.status.replace('_', ' ')}
+                              </span>
                             </div>
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${
-                              phase.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                              phase.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {phase.status.replace('_', ' ')}
-                            </span>
+
+                            {/* Phase Details */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                              {/* Poule Statistics */}
+                              {(() => {
+                                const pouleStats = calculatePouleStats(phase)
+                                return pouleStats && (
+                                  <div className="md:col-span-2">
+                                    <dt className="font-medium text-gray-500 mb-2">Poule Configuration</dt>
+                                    <dd className="mt-1 text-gray-900">
+                                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                        <div>
+                                          <span className="font-medium text-blue-600">Total Poules:</span>
+                                          <div className="text-lg font-bold text-blue-700">{pouleStats.totalPoules}</div>
+                                        </div>
+                                        <div>
+                                          <span className="font-medium text-purple-600">Poule Size:</span>
+                                          <div className="text-lg font-bold text-purple-700">
+                                            {pouleStats.isUniformSize ? 
+                                              pouleStats.minPouleSize :
+                                              `${pouleStats.minPouleSize}-${pouleStats.maxPouleSize}`
+                                            }
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <span className="font-medium text-green-600">Total Athletes:</span>
+                                          <div className="text-lg font-bold text-green-700">{pouleStats.totalAthletes}</div>
+                                        </div>
+                                        <div>
+                                          <span className="font-medium text-gray-600">Avg Size:</span>
+                                          <div className="text-lg font-bold text-gray-700">{pouleStats.avgPouleSize}</div>
+                                        </div>
+                                      </div>
+                                      
+                                      {/* Detailed poule breakdown */}
+                                      {!pouleStats.isUniformSize && (
+                                        <div className="mt-3 p-3 bg-gray-50 rounded">
+                                          <span className="text-xs font-medium text-gray-500 block mb-2">Poule Size Distribution:</span>
+                                          <div className="flex flex-wrap gap-1">
+                                            {pouleStats.pouleSizes.map((size: number, idx: number) => (
+                                              <span key={idx} className="inline-block px-2 py-1 bg-white border rounded text-xs">
+                                                P{idx + 1}: {size}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </dd>
+                                  </div>
+                                )
+                              })()}
+
+                              {/* Qualification Rules */}
+                              {(phase.qualificationQuota || phase.qualificationPercentage) && (
+                                <div>
+                                  <dt className="font-medium text-gray-500">Qualification</dt>
+                                  <dd className="mt-1 text-gray-900">
+                                    {phase.qualificationQuota && `Top ${phase.qualificationQuota} fencers advance`}
+                                    {phase.qualificationPercentage && `Top ${Math.round(phase.qualificationPercentage * 100)}% advance`}
+                                  </dd>
+                                </div>
+                              )}
+
+                              {/* Timing */}
+                              {(phase.startTime || phase.endTime) && (
+                                <div>
+                                  <dt className="font-medium text-gray-500">Schedule</dt>
+                                  <dd className="mt-1 text-gray-900">
+                                    {phase.startTime && `Start: ${new Date(phase.startTime).toLocaleString()}`}
+                                    {phase.startTime && phase.endTime && <br />}
+                                    {phase.endTime && `End: ${new Date(phase.endTime).toLocaleString()}`}
+                                  </dd>
+                                </div>
+                              )}
+
+                              {/* Poule Configuration */}
+                              {phase.pouleSizeVariations && (
+                                <div>
+                                  <dt className="font-medium text-gray-500">Poule Variations</dt>
+                                  <dd className="mt-1 text-gray-900">
+                                    {typeof phase.pouleSizeVariations === 'object' && phase.pouleSizeVariations.sizes ? 
+                                      `Configured sizes: ${phase.pouleSizeVariations.sizes.join(', ')}` :
+                                      'Custom configuration'
+                                    }
+                                  </dd>
+                                </div>
+                              )}
+
+                              {/* Separation Rules */}
+                              {phase.separationRules && (
+                                <div>
+                                  <dt className="font-medium text-gray-500">Separation Rules</dt>
+                                  <dd className="mt-1 text-gray-900">
+                                    {typeof phase.separationRules === 'object' ? (
+                                      <div className="space-y-1">
+                                        {phase.separationRules.club && <span className="inline-block bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs mr-1">Club separation</span>}
+                                        {phase.separationRules.country && <span className="inline-block bg-green-50 text-green-700 px-2 py-1 rounded text-xs mr-1">Country separation</span>}
+                                        {phase.separationRules.maxSameClub && <span className="inline-block bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-xs">Max {phase.separationRules.maxSameClub} per club</span>}
+                                      </div>
+                                    ) : (
+                                      'Custom rules applied'
+                                    )}
+                                  </dd>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Additional Configuration */}
+                            {phase.configuration && phase.configuration.rounds && Array.isArray(phase.configuration.rounds) && phase.configuration.rounds.length > 0 && (
+                              <div className="border-t pt-3">
+                                <dt className="text-sm font-medium text-gray-500 mb-2">Rounds Configuration</dt>
+                                <dd className="text-sm text-gray-900">
+                                  <div className="overflow-x-auto">
+                                    <table className="min-w-full text-xs border">
+                                      <thead>
+                                        <tr className="bg-gray-100">
+                                          <th className="px-2 py-1 border">Round</th>
+                                          <th className="px-2 py-1 border">Poules</th>
+                                          <th className="px-2 py-1 border">Athletes/Poule</th>
+                                          <th className="px-2 py-1 border">Qualify</th>
+                                          <th className="px-2 py-1 border">Club Sep.</th>
+                                          <th className="px-2 py-1 border">Country Sep.</th>
+                                          <th className="px-2 py-1 border">Match Format</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {phase.configuration.rounds.map((round: any, idx: number) => (
+                                          <tr key={idx} className="even:bg-gray-50">
+                                            <td className="px-2 py-1 border">{round.name || `Round ${round.roundNumber}`}</td>
+                                            <td className="px-2 py-1 border text-center">{round.numberOfPoules}</td>
+                                            <td className="px-2 py-1 border text-center">{round.athletesPerPoule}</td>
+                                            <td className="px-2 py-1 border text-center">
+                                              {round.qualificationQuota ? `Top ${round.qualificationQuota}` :
+                                               round.qualificationPercentage ? `Top ${round.qualificationPercentage}%` :
+                                               '-'}
+                                            </td>
+                                            <td className="px-2 py-1 border text-center">{round.enableClubSeparation ? '✔️' : ''}</td>
+                                            <td className="px-2 py-1 border text-center">{round.enableCountrySeparation ? '✔️' : ''}</td>
+                                            <td className="px-2 py-1 border text-center">{round.matchFormat === 'hits_custom' ? `${round.customHitCount} hits` : (round.matchFormat || '-')}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </dd>
+                              </div>
+                            )}
                           </div>
                         ))}
                     </div>

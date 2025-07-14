@@ -75,12 +75,12 @@ export async function GET(
           }
         },
         phases: {
-          select: {
-            id: true,
-            name: true,
-            phaseType: true,
-            status: true,
-            sequenceOrder: true
+          include: {
+            poules: {
+              include: {
+                assignments: true
+              }
+            }
           },
           orderBy: {
             sequenceOrder: "asc"
