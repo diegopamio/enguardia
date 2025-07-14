@@ -112,35 +112,47 @@ export async function GET(
     })
 
     // Transform the data to match frontend expectations
-    const poules = phases.flatMap(phase => 
-      phase.poules.map(poule => ({
+    const transformedPhases = phases.map(phase => ({
+      id: phase.id,
+      name: phase.name,
+      phaseType: phase.phaseType,
+      status: phase.status,
+      sequenceOrder: phase.sequenceOrder,
+      poules: phase.poules.map(poule => ({
         id: poule.id,
-        name: `Poule ${poule.number}`,
-        size: poule.assignments.length,
-        phaseId: phase.id,
-        phase: {
-          name: phase.name,
-          phaseType: phase.phaseType,
-          status: phase.status
-        },
+        number: poule.number,
+        piste: poule.piste,
+        referee: poule.referee,
+        startTime: poule.startTime,
+        status: poule.status,
         assignments: poule.assignments.map(assignment => ({
           id: assignment.id,
+          athleteId: assignment.athleteId,
           position: assignment.position,
           athlete: {
             id: assignment.athlete.id,
             firstName: assignment.athlete.firstName,
             lastName: assignment.athlete.lastName,
             nationality: assignment.athlete.nationality,
-            clubs: assignment.athlete.clubs.map(athleteClub => ({
-              club: athleteClub.club,
-              status: 'ACTIVE'
-            }))
+            fieId: assignment.athlete.fieId,
+            club: assignment.athlete.clubs.length > 0 ? assignment.athlete.clubs[0].club : null
           }
+        })),
+        matches: poule.matches.map(match => ({
+          id: match.id,
+          athleteAId: match.athleteAId,
+          athleteBId: match.athleteBId,
+          scoreA: match.scoreA,
+          scoreB: match.scoreB,
+          winnerId: match.winnerId,
+          status: match.status,
+          startTime: match.startTime,
+          endTime: match.endTime
         }))
       }))
-    )
+    }))
 
-    return NextResponse.json(poules)
+    return NextResponse.json({ phases: transformedPhases })
 
   } catch (error) {
     console.error('Error fetching poules:', error)
