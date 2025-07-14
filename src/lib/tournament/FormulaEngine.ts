@@ -292,7 +292,9 @@ export class FormulaEngine {
       return preferredPoule
     }
 
-    throw new Error(`Cannot assign athlete ${athlete.id} to any poule while maintaining separation rules`)
+    const clubInfo = athlete.club?.name ? ` (${athlete.club.name})` : ''
+    const countryInfo = athlete.nationality ? ` from ${athlete.nationality}` : ''
+    throw new Error(`Cannot assign athlete ${athlete.firstName} ${athlete.lastName}${clubInfo}${countryInfo} to any poule while maintaining separation rules. This usually happens when there are too many athletes from the same club or country for the current poule configuration.`)
   }
 
   /**
@@ -436,13 +438,20 @@ export class FormulaEngine {
     const totalAthletes = poules.reduce((sum, p) => sum + p.athletes.length, 0)
     const averageSize = totalAthletes / totalPoules
 
+    // Calculate total matches (round-robin: n*(n-1)/2 per poule)
+    const totalMatches = poules.reduce((sum, poule) => {
+      const n = poule.athletes.length
+      return sum + (n * (n - 1)) / 2
+    }, 0)
+
     const sizeDistribution: Record<number, number> = {}
     poules.forEach(poule => {
-      sizeDistribution[poule.size] = (sizeDistribution[poule.size] || 0) + 1
+      sizeDistribution[poule.athletes.length] = (sizeDistribution[poule.athletes.length] || 0) + 1
     })
 
     return {
       totalPoules,
+      totalMatches,
       averageSize,
       sizeDistribution,
       separationSuccess: 100 // Will be calculated based on actual violations

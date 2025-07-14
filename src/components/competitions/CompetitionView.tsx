@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiFetch, notify } from '@/lib/notifications'
 import { useRoleCheck } from '@/lib/auth-client'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import PouleView from './PouleView'
+import MatchResults from './MatchResults'
 
 interface Competition {
   id: string
@@ -73,6 +76,7 @@ export default function CompetitionView({ competitionId }: CompetitionViewProps)
   const [competition, setCompetition] = useState<Competition | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<string>('')
   const router = useRouter()
   const { isSystemAdmin, isOrganizationAdmin } = useRoleCheck()
 
@@ -99,6 +103,11 @@ export default function CompetitionView({ competitionId }: CompetitionViewProps)
       const data = await response.json()
       console.log('Received competition data:', data)
       setCompetition(data)
+      
+      // Set default tab based on competition status
+      if (!activeTab) {
+        setActiveTab(data.status === 'IN_PROGRESS' ? 'poules' : 'overview')
+      }
     } catch (err: any) {
       console.error('Error fetching competition:', err)
       setError(err.message || 'Failed to load competition')
@@ -206,147 +215,174 @@ export default function CompetitionView({ competitionId }: CompetitionViewProps)
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Info */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Competition Details */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Competition Details</h2>
-            </div>
-            <div className="px-6 py-4">
-              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Weapon</dt>
-                  <dd className="mt-1 text-sm text-gray-900 flex items-center space-x-1">
-                    <span>{weaponIcons[competition.weapon]}</span>
-                    <span>{competition.weapon}</span>
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Category</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{competition.category}</dd>
-                </div>
-                {competition.maxParticipants && (
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Max Participants</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{competition.maxParticipants}</dd>
-                  </div>
-                )}
-                {competition.registrationDeadline && (
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Registration Deadline</dt>
-                    <dd className="mt-1 text-sm text-gray-900">
-                      {new Date(competition.registrationDeadline).toLocaleDateString()}
-                    </dd>
-                  </div>
-                )}
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Created</dt>
-                  <dd className="mt-1 text-sm text-gray-900">
-                    {new Date(competition.createdAt).toLocaleDateString()}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Last Updated</dt>
-                  <dd className="mt-1 text-sm text-gray-900">
-                    {new Date(competition.updatedAt).toLocaleDateString()}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          </div>
+      {/* Main Content with Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="overview">📊 Overview</TabsTrigger>
+          <TabsTrigger value="poules">🎯 Poules</TabsTrigger>
+          <TabsTrigger value="matches">⚔️ Match Results</TabsTrigger>
+        </TabsList>
 
-          {/* Phases */}
-          {competition.phases && competition.phases.length > 0 && (
-            <div className="bg-white shadow rounded-lg">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Competition Phases</h2>
-              </div>
-              <div className="px-6 py-4">
-                <div className="space-y-3">
-                  {competition.phases
-                    .sort((a, b) => a.sequenceOrder - b.sequenceOrder)
-                    .map((phase) => (
-                      <div key={phase.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <div className="font-medium text-gray-900">{phase.name}</div>
-                          <div className="text-sm text-gray-600">{phase.phaseType}</div>
-                        </div>
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          phase.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                          phase.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {phase.status.replace('_', ' ')}
-                        </span>
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main Info */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Competition Details */}
+              <div className="bg-white shadow rounded-lg">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h2 className="text-lg font-semibold text-gray-900">Competition Details</h2>
+                </div>
+                <div className="px-6 py-4">
+                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Weapon</dt>
+                      <dd className="mt-1 text-sm text-gray-900 flex items-center space-x-1">
+                        <span>{weaponIcons[competition.weapon]}</span>
+                        <span>{competition.weapon}</span>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Category</dt>
+                      <dd className="mt-1 text-sm text-gray-900">{competition.category}</dd>
+                    </div>
+                    {competition.maxParticipants && (
+                      <div>
+                        <dt className="text-sm font-medium text-gray-500">Max Participants</dt>
+                        <dd className="mt-1 text-sm text-gray-900">{competition.maxParticipants}</dd>
                       </div>
-                    ))}
+                    )}
+                    {competition.registrationDeadline && (
+                      <div>
+                        <dt className="text-sm font-medium text-gray-500">Registration Deadline</dt>
+                        <dd className="mt-1 text-sm text-gray-900">
+                          {new Date(competition.registrationDeadline).toLocaleDateString()}
+                        </dd>
+                      </div>
+                    )}
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Created</dt>
+                      <dd className="mt-1 text-sm text-gray-900">
+                        {new Date(competition.createdAt).toLocaleDateString()}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Last Updated</dt>
+                      <dd className="mt-1 text-sm text-gray-900">
+                        {new Date(competition.updatedAt).toLocaleDateString()}
+                      </dd>
+                    </div>
+                  </dl>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Quick Stats */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Quick Stats</h2>
-            </div>
-            <div className="px-6 py-4">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-500">Registrations</span>
-                  <span className="text-lg font-semibold text-gray-900">{competition._count.registrations}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-500">Phases</span>
-                  <span className="text-lg font-semibold text-gray-900">{competition._count.phases}</span>
-                </div>
-                {competition.maxParticipants && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-500">Capacity</span>
-                    <span className="text-lg font-semibold text-gray-900">
-                      {Math.round((competition._count.registrations / competition.maxParticipants) * 100)}%
-                    </span>
+              {/* Phases */}
+              {competition.phases && competition.phases.length > 0 && (
+                <div className="bg-white shadow rounded-lg">
+                  <div className="px-6 py-4 border-b border-gray-200">
+                    <h2 className="text-lg font-semibold text-gray-900">Competition Phases</h2>
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Actions</h2>
-            </div>
-            <div className="px-6 py-4 space-y-3">
-              <button
-                onClick={() => router.push(`/events?view=${competition.tournament.id}`)}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm"
-              >
-                View Tournament
-              </button>
-              <button
-                onClick={() => router.push(`/events?view=${competition.tournament.id}&tab=competitions`)}
-                className="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm"
-              >
-                View All Tournament Competitions
-              </button>
-              {canEdit && (
-                <button
-                  onClick={() => router.push(`/competitions?edit=${competition.id}`)}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm"
-                >
-                  Edit Competition
-                </button>
+                  <div className="px-6 py-4">
+                    <div className="space-y-3">
+                      {competition.phases
+                        .sort((a, b) => a.sequenceOrder - b.sequenceOrder)
+                        .map((phase) => (
+                          <div key={phase.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div>
+                              <div className="font-medium text-gray-900">{phase.name}</div>
+                              <div className="text-sm text-gray-600">{phase.phaseType}</div>
+                            </div>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              phase.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                              phase.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {phase.status.replace('_', ' ')}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
+
+            {/* Sidebar */}
+            <div className="space-y-6">
+              {/* Quick Stats */}
+              <div className="bg-white shadow rounded-lg">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h2 className="text-lg font-semibold text-gray-900">Quick Stats</h2>
+                </div>
+                <div className="px-6 py-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-500">Registrations</span>
+                      <span className="text-lg font-semibold text-gray-900">{competition._count.registrations}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-500">Phases</span>
+                      <span className="text-lg font-semibold text-gray-900">{competition._count.phases}</span>
+                    </div>
+                    {competition.maxParticipants && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-500">Capacity</span>
+                        <span className="text-lg font-semibold text-gray-900">
+                          {Math.round((competition._count.registrations / competition.maxParticipants) * 100)}%
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="bg-white shadow rounded-lg">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h2 className="text-lg font-semibold text-gray-900">Actions</h2>
+                </div>
+                <div className="px-6 py-4 space-y-3">
+                  <button
+                    onClick={() => router.push(`/events?view=${competition.tournament.id}`)}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm"
+                  >
+                    View Tournament
+                  </button>
+                  <button
+                    onClick={() => router.push(`/events?view=${competition.tournament.id}&tab=competitions`)}
+                    className="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm"
+                  >
+                    View All Tournament Competitions
+                  </button>
+                  {canEdit && (
+                    <button
+                      onClick={() => router.push(`/competitions?edit=${competition.id}`)}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm"
+                    >
+                      Edit Competition
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </TabsContent>
+
+        <TabsContent value="poules">
+          <PouleView 
+            competitionId={competition.id} 
+            competitionName={competition.name}
+            weapon={competition.weapon}
+            tournamentId={competition.tournament.id}
+          />
+        </TabsContent>
+
+        <TabsContent value="matches">
+          <MatchResults 
+            competitionId={competition.id} 
+            competitionName={competition.name}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 } 

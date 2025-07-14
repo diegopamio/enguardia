@@ -202,7 +202,7 @@ async function main() {
     create: {
       email: 'admin@esgrima.es',
       name: 'José María Rodríguez',
-      role: UserRole.ADMIN,
+      role: UserRole.ORGANIZATION_ADMIN,
       organizationId: organization1.id,
     },
   })
@@ -213,7 +213,7 @@ async function main() {
     create: {
       email: 'admin@fie.org',
       name: 'Emmanuel Katsiadakis',
-      role: UserRole.ADMIN,
+      role: UserRole.ORGANIZATION_ADMIN,
       organizationId: organization2.id,
     },
   })
@@ -224,7 +224,7 @@ async function main() {
     create: {
       email: 'admin@chamartin.es',
       name: 'Carlos Fernández',
-      role: UserRole.ADMIN,
+      role: UserRole.ORGANIZATION_ADMIN,
       organizationId: organization3.id,
     },
   })
@@ -646,7 +646,7 @@ async function main() {
           athleteId: athlete.id,
           seedNumber: i + 1,
           isPresent: Math.random() > 0.1, // 90% presence rate
-          status: RegistrationStatus.CONFIRMED,
+          status: RegistrationStatus.REGISTERED,
           registeredAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000), // Random registration within last week
         },
       })
@@ -668,7 +668,7 @@ async function main() {
           athleteId: athlete.id,
           seedNumber: i + 1,
           isPresent: false, // Future tournament
-          status: RegistrationStatus.CONFIRMED,
+          status: RegistrationStatus.REGISTERED,
           registeredAt: new Date(Date.now() - Math.random() * 14 * 24 * 60 * 60 * 1000), // Random registration within last 2 weeks
         },
       })
@@ -686,7 +686,7 @@ async function main() {
     data: {
       name: 'Poules Qualification',
       phaseType: PhaseType.POULE,
-      status: PhaseStatus.ACTIVE,
+      status: PhaseStatus.IN_PROGRESS,
       sequenceOrder: 1,
       competitionId: comp2_1.id,
       qualificationQuota: 24,
@@ -712,7 +712,7 @@ async function main() {
     data: {
       name: 'Direct Elimination',
       phaseType: PhaseType.DIRECT_ELIMINATION,
-      status: PhaseStatus.PENDING,
+      status: PhaseStatus.SCHEDULED,
       sequenceOrder: 2,
       competitionId: comp2_1.id,
       qualificationQuota: 1,

@@ -114,6 +114,7 @@ export interface SeparationViolation {
 
 export interface PouleStatistics {
   totalPoules: number
+  totalMatches: number
   averageSize: number
   sizeDistribution: Record<number, number>
   separationSuccess: number // percentage

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useRoleCheck } from '@/lib/auth-client'
 import { notify } from '@/lib/notifications'
 import PouleConfiguration, { type PouleConfigurationData } from './PouleConfiguration'
+import EliminationConfiguration from './EliminationConfiguration'
 import { useCompetitionRegistrations } from '@/hooks/useCompetitionRegistrations'
 import PresetSelector from './PresetSelector'
 import { FormulaTemplate } from '@/lib/tournament/types'
@@ -44,6 +45,7 @@ export default function TournamentFormulaSetup({
   const [currentStep, setCurrentStep] = useState<'preset' | 'poule' | 'elimination' | 'review'>('preset')
   const [selectedPreset, setSelectedPreset] = useState<FormulaTemplate | null>(null)
   const [pouleConfig, setPouleConfig] = useState<PouleConfigurationData | null>(null)
+  const [eliminationConfig, setEliminationConfig] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [showPresetSelector, setShowPresetSelector] = useState(false)
@@ -61,6 +63,53 @@ export default function TournamentFormulaSetup({
       onBack()
     }
   }, [canConfigureFormula, onBack])
+
+  // Load existing phase configuration
+  useEffect(() => {
+    const loadExistingConfiguration = async () => {
+      try {
+        const response = await fetch(`/api/competitions/${competition.id}/phases`)
+        if (response.ok) {
+          const { phases } = await response.json()
+          
+          // Find existing phases and load their configurations
+          const poulePhase = phases.find((p: any) => p.phaseType === 'POULE')
+          const eliminationPhase = phases.find((p: any) => p.phaseType === 'DIRECT_ELIMINATION')
+          
+          if (poulePhase?.configuration) {
+            setPouleConfig(poulePhase.configuration)
+            setCurrentStep('poule') // Skip preset selection if config exists
+          }
+          
+          if (eliminationPhase) {
+            const config = {
+              config: eliminationPhase.configuration || {},
+              brackets: eliminationPhase.bracketConfigs?.map((bracket: any) => ({
+                id: bracket.id,
+                bracketType: bracket.bracketType,
+                size: bracket.size,
+                seedingMethod: bracket.seedingMethod,
+                ...bracket.configuration
+              })) || []
+            }
+            setEliminationConfig(config)
+          }
+          
+          // If both configurations exist, skip to review
+          if (poulePhase && eliminationPhase) {
+            setCurrentStep('review')
+          }
+        }
+      } catch (error) {
+        console.error('Error loading existing configuration:', error)
+        // Continue with preset selection if loading fails
+      }
+    }
+
+    if (competition.id) {
+      loadExistingConfiguration()
+    }
+  }, [competition.id])
 
   // Handle preset selection
   const handlePresetSelect = (preset: FormulaTemplate) => {
@@ -104,11 +153,13 @@ export default function TournamentFormulaSetup({
 
   // Handle poule configuration changes
   const handlePouleConfigChange = (config: PouleConfigurationData) => {
+    console.log('TournamentFormulaSetup: poule config changed:', config)
     setPouleConfig(config)
   }
 
   // Save poule configuration
   const handleSavePouleConfig = async (config: PouleConfigurationData) => {
+    console.log('TournamentFormulaSetup: saving poule config:', config)
     setIsSaving(true)
     try {
       // TODO: Implement API call to save poule configuration
@@ -117,12 +168,35 @@ export default function TournamentFormulaSetup({
       
       // For now, just store locally and move to next step
       setPouleConfig(config)
+      console.log('TournamentFormulaSetup: poule config saved, navigating to elimination')
       setCurrentStep('elimination')
       
       notify.success('Poule configuration saved successfully')
     } catch (error) {
       console.error('Error saving poule configuration:', error)
       notify.error('Failed to save poule configuration')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // Save elimination configuration
+  const handleSaveEliminationConfig = async (config: any) => {
+    console.log('TournamentFormulaSetup: saving elimination config:', config)
+    setIsSaving(true)
+    try {
+      // TODO: Implement API call to save elimination configuration
+      console.log('Saving elimination configuration:', config)
+      
+      // For now, just store locally and move to review step
+      setEliminationConfig(config)
+      console.log('TournamentFormulaSetup: elimination config saved, navigating to review')
+      setCurrentStep('review')
+      
+      notify.success('Elimination configuration saved successfully')
+    } catch (error) {
+      console.error('Error saving elimination configuration:', error)
+      notify.error('Failed to save elimination configuration')
     } finally {
       setIsSaving(false)
     }
@@ -137,11 +211,69 @@ export default function TournamentFormulaSetup({
 
     setIsSaving(true)
     try {
-      // TODO: Implement complete formula save
-      console.log('Saving complete formula configuration:', { 
-        selectedPreset: selectedPreset?.name,
-        pouleConfig 
+      // Prepare phases data for API
+      const phases = []
+      
+      // Add poule phase
+      if (pouleConfig) {
+        phases.push({
+          name: 'Poules',
+          phaseType: 'POULE',
+          sequenceOrder: 1,
+          configuration: pouleConfig
+        })
+      }
+      
+      // Add elimination phase if configured
+      if (eliminationConfig) {
+        phases.push({
+          name: 'Direct Elimination',
+          phaseType: 'DIRECT_ELIMINATION',
+          sequenceOrder: 2,
+          configuration: eliminationConfig.config || {},
+          brackets: eliminationConfig.brackets?.map((bracket: any) => ({
+            bracketType: bracket.bracketType,
+            size: bracket.size,
+            seedingMethod: bracket.seedingMethod,
+            configuration: {
+              name: bracket.name,
+              enableThirdPlaceMatch: bracket.enableThirdPlaceMatch,
+              enableClassificationBouts: bracket.enableClassificationBouts,
+              advancesToNext: bracket.advancesToNext,
+              matchFormat: bracket.matchFormat,
+              customHitCount: bracket.customHitCount,
+              byeDistribution: bracket.byeDistribution,
+              ...(bracket.bracketType === 'REPECHAGE' && {
+                repechageSource: bracket.repechageSource,
+                repechageRounds: bracket.repechageRounds
+              }),
+              ...(bracket.bracketType === 'CLASSIFICATION' && {
+                classificationPositions: bracket.classificationPositions,
+                classificationMethod: bracket.classificationMethod
+              })
+            }
+          })) || []
+        })
+      }
+
+      console.log('Saving formula configuration:', { phases })
+
+      // Save to API
+      const response = await fetch(`/api/competitions/${competition.id}/phases`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ phases })
       })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to save formula')
+      }
+
+      const result = await response.json()
+      console.log('Formula saved successfully:', result)
       
       notify.success('Tournament formula configured successfully')
       
@@ -152,7 +284,7 @@ export default function TournamentFormulaSetup({
       }
     } catch (error) {
       console.error('Error saving tournament formula:', error)
-      notify.error('Failed to save tournament formula')
+      notify.error(error instanceof Error ? error.message : 'Failed to save tournament formula')
     } finally {
       setIsSaving(false)
     }
@@ -288,77 +420,110 @@ export default function TournamentFormulaSetup({
                 </button>
               </div>
             </div>
+
+            {/* Wizard Navigation */}
+            <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
+              <button
+                onClick={onBack}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors"
+              >
+                <span>←</span>
+                Back to Tournament
+              </button>
+              <div className="text-sm text-gray-500">
+                Choose a formula to continue
+              </div>
+            </div>
           </div>
         )}
 
         {currentStep === 'poule' && (
           <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="mb-6">
               <h2 className="text-xl font-semibold text-gray-900">
                 Poule Configuration
               </h2>
-              <button
-                onClick={() => setShowPresetSelector(true)}
-                className="text-sm text-blue-600 hover:text-blue-800"
-              >
-                Change Formula
-              </button>
+              <p className="text-sm text-gray-600 mt-1">
+                Configure poule rounds, seeding, and separation criteria
+              </p>
             </div>
             
             <PouleConfiguration
               totalAthletes={totalAthletes}
               onConfigChange={handlePouleConfigChange}
-              onSave={handleSavePouleConfig}
-              isLoading={isSaving}
-              initialConfig={pouleConfig}
+              onSave={async () => {}} // Remove individual save, use wizard navigation
+              isLoading={false}
+              initialConfig={pouleConfig || (selectedPreset ? { 
+                _presetPhases: selectedPreset.phases,
+                _selectedPreset: selectedPreset 
+              } : {})}
             />
+
+            {/* Wizard Navigation */}
+            <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
+              <button
+                onClick={() => setCurrentStep('preset')}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors"
+              >
+                <span>←</span>
+                Previous
+              </button>
+              <button
+                onClick={() => {
+                  // Save poule config and proceed
+                  if (pouleConfig) {
+                    setCurrentStep('elimination')
+                  }
+                }}
+                disabled={!pouleConfig}
+                className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+                <span>→</span>
+              </button>
+            </div>
           </div>
         )}
 
         {currentStep === 'elimination' && (
           <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="mb-6">
               <h2 className="text-xl font-semibold text-gray-900">
                 Direct Elimination
               </h2>
-              <button
-                onClick={() => setCurrentStep('poule')}
-                className="text-sm text-blue-600 hover:text-blue-800"
-              >
-                Back to Poules
-              </button>
+              <p className="text-sm text-gray-600 mt-1">
+                Configure knockout brackets, seeding, and tournament progression
+              </p>
             </div>
             
-            <div className="text-center py-12">
-              <div className="text-6xl mb-4">🏆</div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Direct Elimination Configuration
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Configure knockout bracket settings and seeding rules
-              </p>
-              
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-                <p className="text-sm text-yellow-800">
-                  <strong>Coming Soon:</strong> Advanced bracket configuration is being developed.
-                  For now, standard direct elimination will be used.
-                </p>
-              </div>
-              
-              <div className="flex gap-4 justify-center">
-                <button
-                  onClick={() => setCurrentStep('poule')}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={() => setCurrentStep('review')}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Continue to Review
-                </button>
-              </div>
+            <EliminationConfiguration
+              totalAthletes={totalAthletes}
+              onConfigChange={setEliminationConfig}
+              onSave={async () => {}} // Remove individual save, use wizard navigation
+              isLoading={false}
+              initialConfig={eliminationConfig || {}}
+            />
+
+            {/* Wizard Navigation */}
+            <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  console.log('TournamentFormulaSetup: Going back to poules, current pouleConfig:', pouleConfig)
+                  setCurrentStep('poule')
+                }}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors"
+              >
+                <span>←</span>
+                Previous
+              </button>
+              <button
+                onClick={() => setCurrentStep('review')}
+                disabled={!eliminationConfig}
+                className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+                <span>→</span>
+              </button>
             </div>
           </div>
         )}
@@ -415,21 +580,32 @@ export default function TournamentFormulaSetup({
                 </div>
               </div>
               
-              {/* Save Actions */}
-              <div className="flex gap-4 justify-end">
+              {/* Wizard Navigation */}
+              <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
                 <button
                   onClick={() => setCurrentStep('elimination')}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors"
                   disabled={isSaving}
                 >
-                  Back
+                  <span>←</span>
+                  Previous
                 </button>
                 <button
                   onClick={handleFinalSave}
                   disabled={isSaving}
-                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                  className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
                 >
-                  {isSaving ? 'Saving...' : 'Save Formula'}
+                  {isSaving ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <span>✓</span>
+                      Save Formula
+                    </>
+                  )}
                 </button>
               </div>
             </div>

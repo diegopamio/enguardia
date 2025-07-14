@@ -7,6 +7,7 @@ import { notify, apiFetch, NotificationError, confirmDelete } from "@/lib/notifi
 import CompetitionForm from "../competitions/CompetitionForm"
 import CompetitionRoster from "./CompetitionRoster"
 import TournamentFormulaSetup from "./TournamentFormulaSetup"
+import TournamentGeneration from "./TournamentGeneration"
 
 interface Competition {
   id: string
@@ -49,6 +50,7 @@ export default function TournamentCompetitions({
   const [refreshKey, setRefreshKey] = useState(0)
   const [viewingRoster, setViewingRoster] = useState<Competition | null>(null)
   const [configuringFormula, setConfiguringFormula] = useState<Competition | null>(null)
+  const [generatingTournament, setGeneratingTournament] = useState<Competition | null>(null)
   const [tournamentName, setTournamentName] = useState(propTournamentName || "")
 
   // Role-based access control
@@ -95,6 +97,35 @@ export default function TournamentCompetitions({
     setConfiguringFormula(null)
     setRefreshKey(prev => prev + 1)
     notify.success('Tournament formula configured successfully')
+  }, [])
+
+  // Handle starting competition
+  const handleStartCompetition = useCallback((competition: Competition) => {
+    if (!canConfigureFormula) {
+      notify.error('You do not have permission to start competitions')
+      return
+    }
+    
+    // If competition is already in progress, go to live competition view
+    if (competition.status === 'IN_PROGRESS') {
+      router.push(`/competitions/${competition.id}`)
+      return
+    }
+    
+    // Otherwise, open the tournament generation wizard
+    setGeneratingTournament(competition)
+  }, [canConfigureFormula, router])
+
+  // Handle tournament generation back
+  const handleGenerationBack = useCallback(() => {
+    setGeneratingTournament(null)
+  }, [])
+
+  // Handle tournament generation success
+  const handleGenerationSuccess = useCallback(() => {
+    setGeneratingTournament(null)
+    setRefreshKey(prev => prev + 1)
+    notify.success('Tournament generated successfully')
   }, [])
 
   // Fetch competitions for this tournament
@@ -288,6 +319,19 @@ export default function TournamentCompetitions({
     )
   }
 
+  // Tournament generation view
+  if (generatingTournament) {
+    return (
+      <TournamentGeneration
+        tournamentId={tournamentId}
+        tournamentName={tournamentName}
+        competition={generatingTournament}
+        onBack={handleGenerationBack}
+        onSuccess={handleGenerationSuccess}
+      />
+    )
+  }
+
   return (
     <div className="bg-white shadow rounded-lg p-6">
       <div className="flex items-center justify-between mb-6">
@@ -341,7 +385,7 @@ export default function TournamentCompetitions({
                   {getWeaponIcon(competition.weapon)} {competition.name}
                 </h4>
                 <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(competition.status)}`}>
-                  {competition.status.replace('_', ' ')}
+                  {competition.status === 'IN_PROGRESS' ? '🏆 Live' : competition.status.replace('_', ' ')}
                 </span>
               </div>
               
@@ -401,6 +445,17 @@ export default function TournamentCompetitions({
                       className="text-purple-600 hover:text-purple-800 text-sm font-medium"
                     >
                       Configure Formula
+                    </button>
+                  )}
+                  {canConfigureFormula && competition._count && competition._count.phases > 0 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleStartCompetition(competition)
+                      }}
+                      className="text-green-600 hover:text-green-800 text-sm font-medium"
+                    >
+                                              {competition.status === 'IN_PROGRESS' ? 'View Competition' : 'Start Competition'}
                     </button>
                   )}
                 </div>
