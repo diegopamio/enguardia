@@ -1,5 +1,5 @@
 import { requirePageAuth } from "@/lib/auth-utils"
-import TournamentCompetitions from "@/components/tournaments/TournamentCompetitions"
+import TournamentDetails from "@/components/tournaments/TournamentDetails"
 
 type Props = {
   params: Promise<{ id: string }>
@@ -13,11 +13,6 @@ export default async function TournamentViewPage({ params }: Props) {
   const { id } = await params
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <TournamentCompetitions 
-        tournamentId={id}
-        tournamentName="" // Will be fetched by the component
-      />
-    </div>
+    <TournamentDetails tournamentId={id} />
   )
 } 

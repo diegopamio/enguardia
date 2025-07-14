@@ -3,12 +3,14 @@
 import React, { useState, useEffect, useCallback } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { useRoleCheck } from "@/lib/auth-client"
-import { notify, apiFetch, NotificationError, confirmDelete } from "@/lib/notifications"
+import { notify, apiFetch, NotificationError } from "@/lib/notifications"
 import CompetitionForm from "../competitions/CompetitionForm"
 import CompetitionRoster from "./CompetitionRoster"
 import TournamentFormulaSetup from "./TournamentFormulaSetup"
 import TournamentGeneration from "./TournamentGeneration"
+import CompetitionCard, { type Competition as CompetitionCardType } from "../competitions/CompetitionCard"
 
+// Local Competition interface for forms - different from the one used in cards
 interface Competition {
   id: string
   name: string
@@ -55,8 +57,6 @@ export default function TournamentCompetitions({
 
   // Role-based access control
   const canCreate = isSystemAdmin() || isOrganizationAdmin()
-  const canEdit = isSystemAdmin() || isOrganizationAdmin()
-  const canDelete = isSystemAdmin() || isOrganizationAdmin()
   const canConfigureFormula = isSystemAdmin() || isOrganizationAdmin()
 
   // Handle back navigation
@@ -178,51 +178,6 @@ export default function TournamentCompetitions({
     setShowCreateForm(true)
   }, [canCreate])
 
-  // Handle competition editing
-  const handleCompetitionEdit = useCallback((competition: Competition) => {
-    if (!canEdit) {
-      notify.error('You do not have permission to edit competitions')
-      return
-    }
-    setEditingCompetition(competition)
-  }, [canEdit])
-
-  // Handle competition deletion
-  const handleCompetitionDelete = useCallback(async (competitionId: string) => {
-    if (!canDelete) {
-      notify.error('You do not have permission to delete competitions')
-      return
-    }
-
-    if (!confirm('Are you sure you want to delete this competition? This action cannot be undone.')) {
-      return
-    }
-
-    const loadingToast = notify.loading('Deleting competition...')
-
-    try {
-      await apiFetch(`/api/competitions/${competitionId}`, {
-        method: "DELETE"
-      })
-
-      notify.dismiss(loadingToast as string)
-      notify.success('Competition deleted successfully')
-      
-      // Refresh the competition list
-      setRefreshKey(prev => prev + 1)
-      
-    } catch (error) {
-      notify.dismiss(loadingToast as string)
-      console.error("Error deleting competition:", error)
-      
-      if (error instanceof NotificationError) {
-        notify.error(error.message)
-      } else {
-        notify.error('Failed to delete competition')
-      }
-    }
-  }, [canDelete])
-
   // Handle form success
   const handleFormSuccess = useCallback(() => {
     setShowCreateForm(false)
@@ -246,26 +201,15 @@ export default function TournamentCompetitions({
     }
   ]
 
-  // Weapon icons
-  const getWeaponIcon = (weapon: string) => {
-    switch (weapon) {
-      case 'EPEE': return '🗡️'
-      case 'FOIL': return '⚔️'
-      case 'SABRE': return '🔪'
-      default: return '⚔️'
-    }
-  }
+  // Weapon icon and status styling functions moved to CompetitionCard
 
-  // Status styling
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'COMPLETED': return 'bg-green-100 text-green-800'
-      case 'IN_PROGRESS': return 'bg-blue-100 text-blue-800'
-      case 'REGISTRATION_OPEN': return 'bg-yellow-100 text-yellow-800'
-      case 'REGISTRATION_CLOSED': return 'bg-orange-100 text-orange-800'
-      case 'CANCELLED': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
+  // Wrapper functions to handle Competition interface differences
+  const handleConfigureFormulaWrapper = canConfigureFormula ? (comp: import('@/components/competitions/CompetitionCard').Competition) => {
+    handleConfigureFormula(comp as Competition)
+  } : undefined
+
+  const handleStartCompetitionWrapper = (comp: import('@/components/competitions/CompetitionCard').Competition) => {
+    handleStartCompetition(comp as Competition)
   }
 
   if (showCreateForm || editingCompetition) {
@@ -279,7 +223,7 @@ export default function TournamentCompetitions({
         
         <CompetitionForm
           mode={editingCompetition ? "edit" : "create"}
-          competition={editingCompetition}
+          competition={editingCompetition as any} // Type cast to handle interface mismatch
           onSuccess={handleFormSuccess}
           onCancel={handleFormCancel}
           tournaments={tournamentData}
@@ -375,92 +319,15 @@ export default function TournamentCompetitions({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {competitions.map((competition) => (
-            <div
+            <CompetitionCard
               key={competition.id}
-              className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => handleViewCompetition(competition.id)}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-lg font-medium text-gray-900 truncate">
-                  {getWeaponIcon(competition.weapon)} {competition.name}
-                </h4>
-                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(competition.status)}`}>
-                  {competition.status === 'IN_PROGRESS' ? '🏆 Live' : competition.status.replace('_', ' ')}
-                </span>
-              </div>
-              
-              <div className="space-y-1 text-sm text-gray-600">
-                <div>Category: {competition.category}</div>
-                <div>Weapon: {competition.weapon}</div>
-                {competition.registrationDeadline && (
-                  <div>Deadline: {new Date(competition.registrationDeadline).toLocaleDateString()}</div>
-                )}
-                {competition._count && (
-                  <div>
-                    Registrations: {competition._count.registrations} | 
-                    Phases: {competition._count.phases}
-                  </div>
-                )}
-              </div>
-
-              {(canEdit || canDelete) && (
-                <div className="flex justify-end space-x-2 mt-4" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleViewCompetition(competition.id)
-                    }}
-                    className="text-green-600 hover:text-green-800 text-sm font-medium"
-                  >
-                    View Roster
-                  </button>
-                  {canEdit && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleCompetitionEdit(competition)
-                      }}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                    >
-                      Edit
-                    </button>
-                  )}
-                  {canDelete && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleCompetitionDelete(competition.id)
-                      }}
-                      className="text-red-600 hover:text-red-800 text-sm font-medium"
-                    >
-                      Delete
-                    </button>
-                  )}
-                  {canConfigureFormula && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleConfigureFormula(competition)
-                      }}
-                      className="text-purple-600 hover:text-purple-800 text-sm font-medium"
-                    >
-                      Configure Formula
-                    </button>
-                  )}
-                  {canConfigureFormula && competition._count && competition._count.phases > 0 && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleStartCompetition(competition)
-                      }}
-                      className="text-green-600 hover:text-green-800 text-sm font-medium"
-                    >
-                                              {competition.status === 'IN_PROGRESS' ? 'View Competition' : 'Start Competition'}
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
+              competition={competition as import('@/components/competitions/CompetitionCard').Competition}
+              onView={(id) => handleViewCompetition(id)}
+              onStartCompetition={handleStartCompetitionWrapper}
+              onViewRoster={(id) => handleViewCompetition(id)}
+              onConfigureFormula={handleConfigureFormulaWrapper}
+              canConfigureFormula={canConfigureFormula}
+            />
           ))}
         </div>
       )}

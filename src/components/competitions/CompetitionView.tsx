@@ -80,6 +80,32 @@ export default function CompetitionView({ competitionId }: CompetitionViewProps)
   const router = useRouter()
   const { isSystemAdmin, isOrganizationAdmin } = useRoleCheck()
 
+  // Detect if we came from a tournament context by checking the referrer or current path
+  const getBackNavigationUrl = () => {
+    if (typeof window !== 'undefined') {
+      // Check if we came from a tournament URL
+      const referrer = document.referrer
+      const currentPath = window.location.pathname
+      
+      // If we're on a nested tournament route like /tournaments/[id]/competitions/[competitionId]
+      const tournamentMatch = currentPath.match(/\/tournaments\/([^\/]+)\/competitions\//)
+      if (tournamentMatch) {
+        return `/tournaments/${tournamentMatch[1]}`
+      }
+      
+      // Check if referrer contains a tournament context
+      if (referrer && referrer.includes('/tournaments/')) {
+        const tournamentReferrerMatch = referrer.match(/\/tournaments\/([^\/]+)/)
+        if (tournamentReferrerMatch) {
+          return `/tournaments/${tournamentReferrerMatch[1]}`
+        }
+      }
+    }
+    
+    // Default fallback to competitions list
+    return '/competitions'
+  }
+
   useEffect(() => {
     fetchCompetition()
   }, [competitionId])
@@ -164,10 +190,10 @@ export default function CompetitionView({ competitionId }: CompetitionViewProps)
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => router.push('/competitions')}
+                onClick={() => router.push(getBackNavigationUrl())}
                 className="text-gray-500 hover:text-gray-700"
               >
-                ← Back to Competitions
+                ← Back
               </button>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 flex items-center space-x-2">
@@ -342,10 +368,10 @@ export default function CompetitionView({ competitionId }: CompetitionViewProps)
                 </div>
                 <div className="px-6 py-4 space-y-3">
                   <button
-                    onClick={() => router.push(`/events?view=${competition.tournament.id}`)}
+                    onClick={() => router.push(getBackNavigationUrl())}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm"
                   >
-                    View Tournament
+                    {getBackNavigationUrl().includes('/tournaments/') ? 'Back to Tournament' : 'View Tournament'}
                   </button>
                   <button
                     onClick={() => router.push(`/events?view=${competition.tournament.id}&tab=competitions`)}

@@ -3,7 +3,27 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { notify, apiFetch, NotificationError, getMessage } from "@/lib/notifications"
-import { Tournament } from "./TournamentManagement"
+
+// Local Tournament interface for this component
+interface Tournament {
+  id: string
+  name: string
+  description?: string | null
+  startDate: string
+  endDate: string
+  venue?: string | null
+  status: string
+  isActive: boolean
+  isPublic: boolean
+  organizationId: string
+  createdAt: string
+  updatedAt: string
+  createdById?: string | null
+  organization?: { id: string; name: string }
+  _count?: {
+    competitions: number
+  }
+}
 
 interface TournamentListProps {
   onTournamentCreate: () => void
@@ -38,6 +58,11 @@ export default function TournamentList({
   // Handle tournament viewing using Next.js router
   const handleTournamentView = useCallback((tournament: Tournament) => {
     router.push(`/tournaments/${tournament.id}`)
+  }, [router])
+
+  // Handle viewing tournament competitions directly
+  const handleViewCompetitions = useCallback((tournament: Tournament) => {
+    router.push(`/tournaments/${tournament.id}/competitions`)
   }, [router])
 
   // Fetch tournaments
@@ -247,18 +272,17 @@ export default function TournamentList({
                     <div>
                       <span className="font-medium">Competitions:</span>
                       <br />
-                      {tournament._count?.competitions || 0}
+                      <button
+                        onClick={() => handleViewCompetitions(tournament)}
+                        className="text-blue-600 hover:text-blue-800 hover:underline focus:outline-none"
+                      >
+                        {tournament._count?.competitions || 0}
+                      </button>
                     </div>
                   </div>
                 </div>
                 
                 <div className="flex flex-col sm:flex-row gap-2 ml-4">
-                  <button
-                    onClick={() => handleTournamentView(tournament)}
-                    className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                  >
-                    View
-                  </button>
                   {canEdit && (
                     <button
                       onClick={() => onTournamentEdit(tournament)}

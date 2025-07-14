@@ -1,30 +1,13 @@
 'use client'
 
 import React, { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { useRoleCheck } from "@/lib/auth-client"
-import { notify, apiFetch, confirmAction } from "@/lib/notifications"
+import { notify, apiFetch } from "@/lib/notifications"
+import CompetitionCard, { type Competition } from "./CompetitionCard"
+import TournamentGeneration from "@/components/tournaments/TournamentGeneration"
 
-// Competition interface
-export interface Competition {
-  id: string
-  name: string
-  weapon: 'EPEE' | 'FOIL' | 'SABRE'
-  category: string
-  status: 'DRAFT' | 'REGISTRATION_OPEN' | 'REGISTRATION_CLOSED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
-  registrationDeadline?: string | Date | null
-  tournamentId: string
-  createdAt: string | Date
-  updatedAt: string | Date
-  tournament?: {
-    id: string
-    name: string
-    organizationId: string
-  }
-  _count?: {
-    registrations: number
-    phases: number
-  }
-}
+// Competition interface is now imported from CompetitionCard
 
 interface CompetitionListProps {
   competitions: Competition[]
@@ -70,51 +53,65 @@ export default function CompetitionList({
   deletingId
 }: CompetitionListProps) {
   const { isSystemAdmin, isOrganizationAdmin } = useRoleCheck()
+  const router = useRouter()
   
-  const canEdit = isSystemAdmin() || isOrganizationAdmin()
-  const canDelete = isSystemAdmin() || isOrganizationAdmin()
+  // Tournament generation state
+  const [generatingTournament, setGeneratingTournament] = useState<Competition | null>(null)
+  
+  const canConfigureFormula = isSystemAdmin() || isOrganizationAdmin()
 
-  const handleDelete = (competition: Competition) => {
-    const confirmed = confirmAction(
-      `Are you sure you want to delete competition "${competition.name}"? This action cannot be undone.`
-    )
+  const handleViewCompetition = (competitionId: string) => {
+    router.push(`/competitions/${competitionId}`)
+  }
+
+  const handleStartCompetition = (competition: Competition) => {
+    if (!canConfigureFormula) {
+      notify.error('You do not have permission to start competitions')
+      return
+    }
     
-    if (confirmed) {
-      onDelete(competition.id)
+    // If competition is already in progress, go to live competition view
+    if (competition.status === 'IN_PROGRESS') {
+      router.push(`/competitions/${competition.id}`)
+      return
     }
+    
+    // Otherwise, open the tournament generation wizard
+    setGeneratingTournament(competition)
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'COMPLETED':
-        return 'bg-green-100 text-green-800'
-      case 'IN_PROGRESS':
-        return 'bg-blue-100 text-blue-800'
-      case 'REGISTRATION_OPEN':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'REGISTRATION_CLOSED':
-        return 'bg-orange-100 text-orange-800'
-      case 'CANCELLED':
-        return 'bg-red-100 text-red-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
+  // Handle tournament generation back
+  const handleGenerationBack = () => {
+    setGeneratingTournament(null)
   }
 
-  const getWeaponIcon = (weapon: string) => {
-    switch (weapon) {
-      case 'EPEE':
-        return '🗡️'
-      case 'FOIL':
-        return '⚔️'
-      case 'SABRE':
-        return '🔪'
-      default:
-        return '⚔️'
-    }
+  // Handle tournament generation success
+  const handleGenerationSuccess = () => {
+    setGeneratingTournament(null)
+    // Could refresh the competitions list here if needed
   }
+
+  const handleConfigureFormula = (competition: Competition) => {
+    // Navigate to formula configuration - could be a specific route or modal
+    router.push(`/competitions/${competition.id}?tab=formula`)
+  }
+
+  // Status and weapon icon functions moved to CompetitionCard
 
   const totalPages = Math.ceil(totalCount / itemsPerPage)
+
+  // Tournament generation view
+  if (generatingTournament) {
+    return (
+      <TournamentGeneration
+        tournamentId={generatingTournament.tournamentId || ''}
+        tournamentName="" // Tournament name not available in competition list context
+        competition={generatingTournament}
+        onBack={handleGenerationBack}
+        onSuccess={handleGenerationSuccess}
+      />
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -244,95 +241,15 @@ export default function CompetitionList({
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {competitions.map((competition) => (
-            <div key={competition.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-              {/* Header */}
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">{competition.name}</h3>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <span>{getWeaponIcon(competition.weapon)}</span>
-                    <span>{competition.weapon}</span>
-                    <span>•</span>
-                    <span>{competition.category}</span>
-                  </div>
-                </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(competition.status)}`}>
-                  {competition.status.replace('_', ' ')}
-                </span>
-              </div>
-
-              {/* Details */}
-              <div className="space-y-2 text-sm text-gray-600 mb-4">
-                {competition.tournament && (
-                  <div className="flex justify-between">
-                    <span className="font-medium">Tournament:</span>
-                    <button
-                      onClick={() => {
-                        if (typeof window !== 'undefined' && competition.tournament) {
-                          window.location.href = `/events?view=${competition.tournament.id}`
-                        }
-                      }}
-                      className="truncate ml-2 text-blue-600 hover:text-blue-800 underline text-left"
-                      title="View tournament details"
-                    >
-                      🏆 {competition.tournament.name}
-                    </button>
-                  </div>
-                )}
-                {competition.registrationDeadline && (
-                  <div className="flex justify-between">
-                    <span className="font-medium">Deadline:</span>
-                    <span>{new Date(competition.registrationDeadline).toLocaleDateString()}</span>
-                  </div>
-                )}
-                {competition._count && (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="font-medium">Registrations:</span>
-                      <span>{competition._count.registrations}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium">Phases:</span>
-                      <span>{competition._count.phases}</span>
-                    </div>
-                  </>
-                )}
-                <div className="flex justify-between">
-                  <span className="font-medium">Created:</span>
-                  <span>{new Date(competition.createdAt).toLocaleDateString()}</span>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2 pt-4 border-t border-gray-100">
-                <button
-                  onClick={() => {
-                    if (typeof window !== 'undefined') {
-                      window.location.href = `/competitions/${competition.id}`
-                    }
-                  }}
-                  className="flex-1 px-3 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
-                >
-                  View Details
-                </button>
-                {canEdit && onEdit && (
-                  <button
-                    onClick={() => onEdit(competition)}
-                    className="flex-1 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                  >
-                    Edit
-                  </button>
-                )}
-                {canDelete && onDelete && (
-                  <button
-                    onClick={() => handleDelete(competition)}
-                    className="px-3 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
-                  >
-                    Delete
-                  </button>
-                )}
-              </div>
-            </div>
+            <CompetitionCard
+              key={competition.id}
+              competition={competition}
+              onView={handleViewCompetition}
+              onStartCompetition={handleStartCompetition}
+              onViewRoster={handleViewCompetition}
+              onConfigureFormula={canConfigureFormula ? handleConfigureFormula : undefined}
+              canConfigureFormula={canConfigureFormula}
+            />
           ))}
         </div>
       )}
