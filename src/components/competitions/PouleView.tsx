@@ -69,7 +69,6 @@ export default function PouleView({ competitionId, competitionName, weapon, tour
   const [viewMode, setViewMode] = useState<'data-entry' | 'print'>('data-entry')
   const [identificationMode, setIdentificationMode] = useState<'club' | 'nationality' | 'region'>('club')
   const [editingCell, setEditingCell] = useState<{ pouleId: string; athleteAId: string; athleteBId: string } | null>(null)
-  const [tempScores, setTempScores] = useState<{ [key: string]: string }>({})
 
   useEffect(() => {
     fetchPoules()
@@ -150,51 +149,20 @@ export default function PouleView({ competitionId, competitionName, weapon, tour
     return results
   }
 
+  // Simple function to get the raw score for display
   const getMatchScore = (poule: Poule, athleteAId: string, athleteBId: string) => {
-    // Find the match
     const match = poule.matches.find(m => 
       (m.athleteAId === athleteAId && m.athleteBId === athleteBId) ||
       (m.athleteAId === athleteBId && m.athleteBId === athleteAId)
     )
     
     if (!match) {
-      // Check for temporary scores when no match exists yet
-      const tempKey = `${poule.id}-${athleteAId}-${athleteBId}`
-      const tempScore = tempScores[tempKey]
-      return tempScore !== undefined ? tempScore : null
+      return null
     }
     
-    // Check for temporary scores using match ID + athlete position
+    // Return the score for the specific athlete
     const isAthleteA = match.athleteAId === athleteAId
-    const tempKey = `${match.id}-${isAthleteA ? 'A' : 'B'}`
-    const tempScore = tempScores[tempKey]
-    
-    if (tempScore !== undefined) {
-      return tempScore
-    }
-    
-    // Get the actual stored score
-    const myScore = isAthleteA ? match.scoreA : match.scoreB
-    const opponentScore = isAthleteA ? match.scoreB : match.scoreA
-    
-    // If this athlete's score is null, return null
-    if (myScore === null) {
-      return null
-    }
-    
-    // Check if this is a cleared match (both scores 0 and status is SCHEDULED)
-    if (match.scoreA === 0 && match.scoreB === 0 && match.status === 'SCHEDULED') {
-      return null
-    }
-    
-    // Render as V notation when both scores are present and one is greater than the other
-    if (myScore !== null && opponentScore !== null && myScore > opponentScore) {
-      // If this athlete's score is greater than opponent's score, render as V<score>
-      return `V${myScore}`
-    }
-    
-    // For all other cases (losses, ties, or incomplete matches), show the numeric score
-    return myScore
+    return isAthleteA ? match.scoreA : match.scoreB
   }
 
   const getIdentificationText = (athlete: Athlete) => {
@@ -210,44 +178,9 @@ export default function PouleView({ competitionId, competitionName, weapon, tour
     }
   }
 
-  const handleScoreClick = (pouleId: string, athleteAId: string, athleteBId: string) => {
+  const handleCellClick = (pouleId: string, athleteAId: string, athleteBId: string) => {
     if (athleteAId === athleteBId) return // Can't edit diagonal
-    
-    const currentPhase = phases.find(p => p.poules.find(po => po.id === pouleId))
-    const currentPoule = currentPhase?.poules.find(po => po.id === pouleId)
-    const currentScore = currentPoule ? getMatchScore(currentPoule, athleteAId, athleteBId) : null
-    
-    // Find existing match to get the ID
-    const match = currentPoule?.matches.find(m => 
-      (m.athleteAId === athleteAId && m.athleteBId === athleteBId) ||
-      (m.athleteAId === athleteBId && m.athleteBId === athleteAId)
-    )
-    
-    let cellKey: string
-    if (match) {
-      // Use match ID + athlete position for existing matches
-      const isAthleteA = match.athleteAId === athleteAId
-      cellKey = `${match.id}-${isAthleteA ? 'A' : 'B'}`
-    } else {
-      // Use poule-athlete format for new matches
-      cellKey = `${pouleId}-${athleteAId}-${athleteBId}`
-    }
-    
     setEditingCell({ pouleId, athleteAId, athleteBId })
-    setTempScores({ ...tempScores, [cellKey]: currentScore?.toString() || '' })
-  }
-
-  const handleScoreChange = (cellKey: string, value: string) => {
-    // Handle fencing notation
-    const upperValue = value.toUpperCase()
-    
-    // Handle V, V<number>, or numeric values
-    if (upperValue === 'V' || /^V\d*$/.test(upperValue) || /^\d+$/.test(value) || value === '') {
-      setTempScores({ ...tempScores, [cellKey]: upperValue })
-    } else {
-      // Only allow valid fencing notation
-      setTempScores({ ...tempScores, [cellKey]: tempScores[cellKey] || '' })
-    }
   }
 
   const findAdjacentCell = (pouleId: string, currentAthleteId: string, currentOpponentId: string, direction: 'up' | 'down' | 'left' | 'right') => {
@@ -310,317 +243,10 @@ export default function PouleView({ competitionId, competitionName, weapon, tour
     }
   }
 
-  const handleScoreSubmit = async (pouleId: string, athleteAId: string, athleteBId: string) => {
-    // Find the current match and determine the appropriate key
-    const currentPhase = phases.find(p => p.poules.find(po => po.id === pouleId))
-    const currentPoule = currentPhase?.poules.find(po => po.id === pouleId)
-    const match = currentPoule?.matches.find(m => 
-      (m.athleteAId === athleteAId && m.athleteBId === athleteBId) ||
-      (m.athleteAId === athleteBId && m.athleteBId === athleteAId)
-    )
-    
-    let cellKey: string
-    if (match) {
-      const isAthleteA = match.athleteAId === athleteAId
-      cellKey = `${match.id}-${isAthleteA ? 'A' : 'B'}`
-    } else {
-      cellKey = `${pouleId}-${athleteAId}-${athleteBId}`
-    }
-    
-    const scoreValue = tempScores[cellKey]
-    
-    // Handle empty cells (user wants to clear the score)
-    if (scoreValue === '' || scoreValue === undefined) {
-      // First check if a match exists
-      const currentPhase = phases.find(p => p.poules.find(po => po.id === pouleId))
-      const currentPoule = currentPhase?.poules.find(po => po.id === pouleId)
-      const match = currentPoule?.matches.find(m => 
-        (m.athleteAId === athleteAId && m.athleteBId === athleteBId) ||
-        (m.athleteAId === athleteBId && m.athleteBId === athleteAId)
-      )
-      
-      if (!match) {
-        // No match exists - just clear the temporary score
-        setEditingCell(null)
-        const newTempScores = { ...tempScores }
-        delete newTempScores[cellKey]
-        setTempScores(newTempScores)
-        return
-      }
-      
-      try {
-        // Send request to clear only this athlete's score
-        const response = await fetch(`/api/competitions/${competitionId}/poules/${pouleId}/matches`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            athleteAId: athleteAId < athleteBId ? athleteAId : athleteBId,
-            athleteBId: athleteAId < athleteBId ? athleteBId : athleteAId,
-            scoreA: 0,
-            scoreB: 0,
-            editingAthleteId: athleteAId, // Indicate which athlete's score to clear
-            clearScore: true, // Flag to indicate we're clearing a score
-          }),
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to clear score')
-        }
-
-        const responseData = await response.json()
-        
-        // Update local state with the cleared match
-        if (responseData.match) {
-          const clearedMatch = responseData.match
-          setPhases(prevPhases => 
-            prevPhases.map(phase => ({
-              ...phase,
-              poules: phase.poules.map(poule => {
-                if (poule.id !== pouleId) return poule
-                
-                // Check if this match already exists
-                const existingMatchIndex = poule.matches.findIndex(m => 
-                  (m.athleteAId === clearedMatch.athleteAId && m.athleteBId === clearedMatch.athleteBId) ||
-                  (m.athleteAId === clearedMatch.athleteBId && m.athleteBId === clearedMatch.athleteAId)
-                )
-                
-                let updatedMatches
-                if (existingMatchIndex >= 0) {
-                  // Update existing match
-                  updatedMatches = [...poule.matches]
-                  updatedMatches[existingMatchIndex] = clearedMatch
-                } else {
-                  // This shouldn't happen for clearing, but handle it anyway
-                  updatedMatches = [...poule.matches, clearedMatch]
-                }
-                
-                return {
-                  ...poule,
-                  matches: updatedMatches
-                }
-              })
-            }))
-          )
-        }
-
-        setEditingCell(null)
-        // Clear temporary scores for this cell
-        const newTempScores = { ...tempScores }
-        delete newTempScores[cellKey]
-        setTempScores(newTempScores)
-      } catch (error) {
-        console.error('Error clearing score:', error)
-        setEditingCell(null)
-      }
-      return
-    }
-
-    try {
-      // Find the match in the current data
-      const currentPhase = phases.find(p => p.poules.find(po => po.id === pouleId))
-      const currentPoule = currentPhase?.poules.find(po => po.id === pouleId)
-      let match = currentPoule?.matches.find(m => 
-        (m.athleteAId === athleteAId && m.athleteBId === athleteBId) ||
-        (m.athleteAId === athleteBId && m.athleteBId === athleteAId)
-      )
-
-      // We need to determine the scores based on who we're editing for
-      // and ensure we always send athletes in consistent order to the API
-      let apiAthleteA, apiAthleteB
-      
-      // Determine the canonical order for the match (always use lower ID as athleteA)
-      if (athleteAId < athleteBId) {
-        apiAthleteA = athleteAId
-        apiAthleteB = athleteBId
-      } else {
-        apiAthleteA = athleteBId
-        apiAthleteB = athleteAId
-      }
-      
-      // Prepare score values based on input
-      let scoreA: number | null = 0
-      let scoreB: number | null = 0
-      const maxPouleScore = 5 // Max score in fencing poule
-      
-      // Check if it's a victory notation
-      if (scoreValue.toUpperCase().startsWith('V')) {
-        // Parse V or V<number> format
-        const vValue = scoreValue.substring(1).trim()
-        let victoryScore: number
-        
-        if (vValue === '') {
-          // Just "V" - use max poule score
-          victoryScore = maxPouleScore
-        } else if (!isNaN(Number(vValue))) {
-          // "V<number>" - use the specified number
-          victoryScore = Number(vValue)
-        } else {
-          // Invalid format
-          setEditingCell(null)
-          return
-        }
-        
-        // Set the victory score ONLY for the editing athlete, preserve opponent's score
-        if (athleteAId === apiAthleteA) {
-          scoreA = victoryScore
-          scoreB = match?.scoreB || null
-        } else {
-          scoreA = match?.scoreA || null
-          scoreB = victoryScore
-        }
-      } else {
-        // Regular numeric score
-        if (isNaN(Number(scoreValue))) {
-          setEditingCell(null)
-          return
-        }
-        
-        const numericScore = Number(scoreValue)
-        
-        // Set the score for the editing athlete, preserve opponent's score
-        if (athleteAId === apiAthleteA) {
-          scoreA = numericScore
-          scoreB = match?.scoreB || null
-        } else {
-          scoreA = match?.scoreA || null
-          scoreB = numericScore
-        }
-      }
-      
-      // Always use the canonical athlete order for the API
-      const originalEditingAthleteId = athleteAId // Save the original editing athlete ID
-      athleteAId = apiAthleteA
-      athleteBId = apiAthleteB
-      
-      // Save to database
-      const response = await fetch(`/api/competitions/${competitionId}/poules/${pouleId}/matches`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          athleteAId,
-          athleteBId,
-          scoreA,
-          scoreB,
-          editingAthleteId: originalEditingAthleteId, // Pass the original editing athlete ID
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to save score')
-      }
-
-      const responseData = await response.json()
-      const updatedMatch = responseData.match
-
-      // Update the local state with the new/updated match
-      setPhases(prevPhases => 
-        prevPhases.map(phase => ({
-          ...phase,
-          poules: phase.poules.map(poule => {
-            if (poule.id !== pouleId) return poule
-            
-            // Check if this match already exists
-            const existingMatchIndex = poule.matches.findIndex(m => 
-              (m.athleteAId === updatedMatch.athleteAId && m.athleteBId === updatedMatch.athleteBId) ||
-              (m.athleteAId === updatedMatch.athleteBId && m.athleteBId === updatedMatch.athleteAId)
-            )
-            
-            let updatedMatches
-            if (existingMatchIndex >= 0) {
-              // Update existing match
-              updatedMatches = [...poule.matches]
-              updatedMatches[existingMatchIndex] = updatedMatch
-            } else {
-              // Add new match
-              updatedMatches = [...poule.matches, updatedMatch]
-            }
-            
-            return {
-              ...poule,
-              matches: updatedMatches
-            }
-          })
-        }))
-      )
-
-      setEditingCell(null)
-      
-      // Clear temporary scores ONLY for the specific athlete that was saved
-      // Don't clear the opponent's temporary score if they have one
-      const savedMatch = currentPoule?.matches.find(m => m.id === updatedMatch.id)
-      let clearKey: string
-      if (savedMatch) {
-        const isAthleteA = savedMatch.athleteAId === athleteAId
-        clearKey = `${savedMatch.id}-${isAthleteA ? 'A' : 'B'}`
-      } else {
-        clearKey = `${pouleId}-${athleteAId}-${athleteBId}`
-      }
-      
-      const newTempScores = { ...tempScores }
-      delete newTempScores[clearKey]
-      
-      // Also clear any old-format temp scores for this cell
-      delete newTempScores[`${pouleId}-${athleteAId}-${athleteBId}`]
-      
-      setTempScores(newTempScores)
-    } catch (error) {
-      console.error('Error saving score:', error)
-      setEditingCell(null)
-    }
-  }
-
-  const handleScoreCancel = () => {
-    setEditingCell(null)
-  }
-
-  const handleArrowNavigation = async (pouleId: string, athleteAId: string, athleteBId: string, direction: 'up' | 'down' | 'left' | 'right') => {
-    // First, save the current cell (including empty values to clear scores)
-    const currentPhase = phases.find(p => p.poules.find(po => po.id === pouleId))
-    const currentPoule = currentPhase?.poules.find(po => po.id === pouleId)
-    const currentMatch = currentPoule?.matches.find(m => 
-      (m.athleteAId === athleteAId && m.athleteBId === athleteBId) ||
-      (m.athleteAId === athleteBId && m.athleteBId === athleteAId)
-    )
-    
-    let currentCellKey: string
-    if (currentMatch) {
-      const isAthleteA = currentMatch.athleteAId === athleteAId
-      currentCellKey = `${currentMatch.id}-${isAthleteA ? 'A' : 'B'}`
-    } else {
-      currentCellKey = `${pouleId}-${athleteAId}-${athleteBId}`
-    }
-    
-    const currentValue = tempScores[currentCellKey]
-    
-    // Save if we have any value (including empty string which means clear the score)
-    if (currentValue !== undefined) {
-      await handleScoreSubmit(pouleId, athleteAId, athleteBId)
-    }
-    
-    // Then navigate to the next cell
+  const handleArrowNavigation = (pouleId: string, athleteAId: string, athleteBId: string, direction: 'up' | 'down' | 'left' | 'right') => {
     const nextCell = findAdjacentCell(pouleId, athleteAId, athleteBId, direction)
     if (nextCell) {
-      // Don't try to set any temporary score value - let the cell be clicked naturally
-      // This avoids race conditions with state updates from the save operation
       setEditingCell(nextCell)
-      
-      // Clean up temp scores from the saved cell only
-      const newTempScores = { ...tempScores }
-      delete newTempScores[currentCellKey] // Remove the saved cell
-      
-      // Also clean up any old-format temp scores for the saved cell
-      delete newTempScores[`${pouleId}-${athleteAId}-${athleteBId}`]
-      
-      setTempScores(newTempScores)
-      
-      // Trigger the normal cell click logic to set up the next cell properly
-      // This will use the most up-to-date data and handle temporary scores correctly
-      handleScoreClick(nextCell.pouleId, nextCell.athleteAId, nextCell.athleteBId)
     }
   }
 
@@ -835,20 +461,6 @@ export default function PouleView({ competitionId, competitionName, weapon, tour
                     
                     {/* Score Matrix */}
                     {sortedAssignments.map(opponentAssignment => {
-                      // Find existing match to determine the key
-                      const match = poule.matches.find(m => 
-                        (m.athleteAId === assignment.athleteId && m.athleteBId === opponentAssignment.athleteId) ||
-                        (m.athleteAId === opponentAssignment.athleteId && m.athleteBId === assignment.athleteId)
-                      )
-                      
-                      let cellKey: string
-                      if (match) {
-                        const isAthleteA = match.athleteAId === assignment.athleteId
-                        cellKey = `${match.id}-${isAthleteA ? 'A' : 'B'}`
-                      } else {
-                        cellKey = `${poule.id}-${assignment.athleteId}-${opponentAssignment.athleteId}`
-                      }
-                      
                       const isEditing = editingCell?.pouleId === poule.id && 
                                        editingCell?.athleteAId === assignment.athleteId && 
                                        editingCell?.athleteBId === opponentAssignment.athleteId
@@ -864,28 +476,27 @@ export default function PouleView({ competitionId, competitionName, weapon, tour
                             // Edit mode - show input field
                             <input
                               type="text"
-                              value={tempScores[cellKey] || ''}
-                              onChange={(e) => handleScoreChange(cellKey, e.target.value)}
+                              defaultValue={getMatchScore(poule, assignment.athleteId, opponentAssignment.athleteId)?.toString() || ''}
                               onFocus={(e) => e.target.select()}
-                              onBlur={() => handleScoreSubmit(poule.id, assignment.athleteId, opponentAssignment.athleteId)}
-                              onKeyDown={async (e) => {
+                              onBlur={() => setEditingCell(null)}
+                              onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
                                   e.preventDefault()
-                                  await handleScoreSubmit(poule.id, assignment.athleteId, opponentAssignment.athleteId)
+                                  setEditingCell(null)
                                 } else if (e.key === 'Escape') {
-                                  handleScoreCancel()
+                                  setEditingCell(null)
                                 } else if (e.key === 'ArrowUp') {
                                   e.preventDefault()
-                                  await handleArrowNavigation(poule.id, assignment.athleteId, opponentAssignment.athleteId, 'up')
+                                  handleArrowNavigation(poule.id, assignment.athleteId, opponentAssignment.athleteId, 'up')
                                 } else if (e.key === 'ArrowDown') {
                                   e.preventDefault()
-                                  await handleArrowNavigation(poule.id, assignment.athleteId, opponentAssignment.athleteId, 'down')
+                                  handleArrowNavigation(poule.id, assignment.athleteId, opponentAssignment.athleteId, 'down')
                                 } else if (e.key === 'ArrowLeft') {
                                   e.preventDefault()
-                                  await handleArrowNavigation(poule.id, assignment.athleteId, opponentAssignment.athleteId, 'left')
+                                  handleArrowNavigation(poule.id, assignment.athleteId, opponentAssignment.athleteId, 'left')
                                 } else if (e.key === 'ArrowRight') {
                                   e.preventDefault()
-                                  await handleArrowNavigation(poule.id, assignment.athleteId, opponentAssignment.athleteId, 'right')
+                                  handleArrowNavigation(poule.id, assignment.athleteId, opponentAssignment.athleteId, 'right')
                                 }
                               }}
                               className="w-full h-6 text-center border-none focus:outline-none focus:ring-2 focus:ring-blue-500 bg-yellow-100"
@@ -895,7 +506,7 @@ export default function PouleView({ competitionId, competitionName, weapon, tour
                             // View mode - clickable score cell
                             <div 
                               className="min-h-[24px] flex items-center justify-center cursor-pointer hover:bg-gray-100"
-                              onClick={() => handleScoreClick(poule.id, assignment.athleteId, opponentAssignment.athleteId)}
+                              onClick={() => handleCellClick(poule.id, assignment.athleteId, opponentAssignment.athleteId)}
                             >
                               {getMatchScore(poule, assignment.athleteId, opponentAssignment.athleteId) ?? ''}
                             </div>
