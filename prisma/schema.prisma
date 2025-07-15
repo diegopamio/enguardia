@@ -601,8 +601,8 @@ model PouleMatch {
   pouleId   String
   athleteAId String
   athleteBId String
-  scoreA    Int         @default(0)
-  scoreB    Int         @default(0)
+  scoreA    Int?
+  scoreB    Int?
   winnerId  String?
   status    MatchStatus @default(SCHEDULED)
   startTime DateTime?
