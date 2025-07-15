@@ -59,3 +59,6 @@ node_modules/
 *.sw?
 # OS specific
 /src/generated/prisma
+
+# Cursor MCP configuration (contains API keys)
+.cursor/mcp.json
