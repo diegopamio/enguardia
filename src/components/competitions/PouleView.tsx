@@ -568,15 +568,12 @@ export default function PouleView({ competitionId, competitionName, weapon, tour
                           ) : (
                             // View mode - clickable score cell
                             <div 
-                              className={`min-h-[24px] flex items-center justify-center cursor-pointer hover:bg-gray-100 relative ${
-                                isOpponent ? 'bg-blue-100' : ''
+                              className={`min-h-[24px] flex items-center justify-center cursor-pointer hover:bg-gray-100 relative transition-colors duration-300 ease-in-out ${
+                                isOpponent ? 'bg-gray-200' : ''
                               }`}
                               onClick={() => handleCellClick(poule.id, assignment.athleteId, opponentAssignment.athleteId)}
                             >
                               {getMatchScore(poule, assignment.athleteId, opponentAssignment.athleteId) ?? ''}
-                              {isOpponent && (
-                                <div className="absolute inset-0 border-2 border-blue-500 rounded-full m-0.5 pointer-events-none"></div>
-                              )}
                             </div>
                           )}
                         </td>
