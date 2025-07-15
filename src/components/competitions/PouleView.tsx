@@ -193,22 +193,57 @@ export default function PouleView({ competitionId, competitionName, weapon, tour
     const currentRowIndex = sortedAssignments.findIndex(a => a.athleteId === currentAthleteId)
     const currentColIndex = sortedAssignments.findIndex(a => a.athleteId === currentOpponentId)
     
+    // Check if we're at boundaries and should stay in place
+    const isTopLeftCorner = (currentRowIndex === 0 && currentColIndex === 1)
+    const isLeftTopCorner = (currentRowIndex === 1 && currentColIndex === 0)
+    const isLastEditableCell = (currentRowIndex === sortedAssignments.length - 1 && currentColIndex === sortedAssignments.length - 2)
+    
+    // Stay in place at specific boundaries for specific directions
+    if (isTopLeftCorner && (direction === 'up' || direction === 'left')) {
+      return null
+    }
+    if (isLeftTopCorner && direction === 'up') {
+      return null
+      // Note: left arrow from (1,0) should wrap to previous row, so we don't block it
+    }
+    if (isLastEditableCell && (direction === 'down' || direction === 'right')) {
+      return null
+    }
+    
     let newRowIndex = currentRowIndex
     let newColIndex = currentColIndex
     
     switch (direction) {
       case 'up':
-        newRowIndex = Math.max(0, currentRowIndex - 1)
+        newRowIndex = currentRowIndex - 1
         break
       case 'down':
-        newRowIndex = Math.min(sortedAssignments.length - 1, currentRowIndex + 1)
+        newRowIndex = currentRowIndex + 1
         break
       case 'left':
-        newColIndex = Math.max(0, currentColIndex - 1)
+        // Special case: if at first column, jump to last column of previous row
+        if (currentColIndex === 0) {
+          newRowIndex = currentRowIndex - 1
+          newColIndex = sortedAssignments.length - 1
+        } else {
+          newColIndex = currentColIndex - 1
+        }
         break
       case 'right':
-        newColIndex = Math.min(sortedAssignments.length - 1, currentColIndex + 1)
+        // Special case: if at end of row, jump to first column of next row
+        if (currentColIndex === sortedAssignments.length - 1) {
+          newRowIndex = currentRowIndex + 1
+          newColIndex = 0
+        } else {
+          newColIndex = currentColIndex + 1
+        }
         break
+    }
+    
+    // Check bounds
+    if (newRowIndex < 0 || newRowIndex >= sortedAssignments.length || 
+        newColIndex < 0 || newColIndex >= sortedAssignments.length) {
+      return null
     }
     
     // Skip diagonal cells
@@ -216,23 +251,40 @@ export default function PouleView({ competitionId, competitionName, weapon, tour
       // Try to move one more step in the same direction
       switch (direction) {
         case 'up':
-          newRowIndex = Math.max(0, newRowIndex - 1)
+          newRowIndex = newRowIndex - 1
           break
         case 'down':
-          newRowIndex = Math.min(sortedAssignments.length - 1, newRowIndex + 1)
+          newRowIndex = newRowIndex + 1
           break
         case 'left':
-          newColIndex = Math.max(0, newColIndex - 1)
+          // For left arrow, if we hit diagonal after jumping to previous row, move to previous column
+          if (currentColIndex === 0) {
+            // We just jumped to previous row and hit diagonal, move to column length-2
+            newColIndex = sortedAssignments.length - 2
+          } else {
+            newColIndex = newColIndex - 1
+          }
           break
         case 'right':
-          newColIndex = Math.min(sortedAssignments.length - 1, newColIndex + 1)
+          // For right arrow, if we hit diagonal after jumping to next row, move to next column
+          if (currentColIndex === sortedAssignments.length - 1) {
+            // We just jumped to next row and hit diagonal, move to column 1
+            newColIndex = 1
+          } else {
+            newColIndex = newColIndex + 1
+          }
           break
       }
     }
     
-    // If still diagonal or out of bounds, return null
-    if (newRowIndex === newColIndex || newRowIndex < 0 || newColIndex < 0 || 
-        newRowIndex >= sortedAssignments.length || newColIndex >= sortedAssignments.length) {
+    // Final bounds check after diagonal skip
+    if (newRowIndex < 0 || newRowIndex >= sortedAssignments.length || 
+        newColIndex < 0 || newColIndex >= sortedAssignments.length) {
+      return null
+    }
+    
+    // Final diagonal check
+    if (newRowIndex === newColIndex) {
       return null
     }
     
