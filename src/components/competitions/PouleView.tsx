@@ -183,6 +183,14 @@ export default function PouleView({ competitionId, competitionName, weapon, tour
     setEditingCell({ pouleId, athleteAId, athleteBId })
   }
 
+  // Helper function to check if a cell is the opponent of the currently editing cell
+  const isOpponentCell = (pouleId: string, athleteId: string, opponentId: string) => {
+    if (!editingCell || editingCell.pouleId !== pouleId) return false
+    
+    // Check if this cell represents the opposite perspective of the editing cell
+    return (editingCell.athleteAId === opponentId && editingCell.athleteBId === athleteId)
+  }
+
   const findAdjacentCell = (pouleId: string, currentAthleteId: string, currentOpponentId: string, direction: 'up' | 'down' | 'left' | 'right') => {
     const currentPhase = phases.find(p => p.poules.find(po => po.id === pouleId))
     const currentPoule = currentPhase?.poules.find(po => po.id === pouleId)
@@ -516,9 +524,12 @@ export default function PouleView({ competitionId, competitionName, weapon, tour
                       const isEditing = editingCell?.pouleId === poule.id && 
                                        editingCell?.athleteAId === assignment.athleteId && 
                                        editingCell?.athleteBId === opponentAssignment.athleteId
+                      const isOpponent = isOpponentCell(poule.id, assignment.athleteId, opponentAssignment.athleteId)
                       
                       return (
-                        <td key={opponentAssignment.id} className="border border-black p-1 text-center">
+                        <td key={opponentAssignment.id} className={`border border-black p-1 text-center ${
+                          isOpponent ? 'relative' : ''
+                        }`}>
                           {assignment.athleteId === opponentAssignment.athleteId ? (
                             // Diagonal - fencer vs themselves
                             <div className="bg-gray-300 w-full h-full flex items-center justify-center">
@@ -557,10 +568,15 @@ export default function PouleView({ competitionId, competitionName, weapon, tour
                           ) : (
                             // View mode - clickable score cell
                             <div 
-                              className="min-h-[24px] flex items-center justify-center cursor-pointer hover:bg-gray-100"
+                              className={`min-h-[24px] flex items-center justify-center cursor-pointer hover:bg-gray-100 relative ${
+                                isOpponent ? 'bg-blue-100' : ''
+                              }`}
                               onClick={() => handleCellClick(poule.id, assignment.athleteId, opponentAssignment.athleteId)}
                             >
                               {getMatchScore(poule, assignment.athleteId, opponentAssignment.athleteId) ?? ''}
+                              {isOpponent && (
+                                <div className="absolute inset-0 border-2 border-blue-500 rounded-full m-0.5 pointer-events-none"></div>
+                              )}
                             </div>
                           )}
                         </td>
