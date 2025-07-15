@@ -5,6 +5,7 @@ import { apiFetch, notify } from '@/lib/notifications'
 export interface Club {
   id: string
   name: string
+  shortName?: string | null
   city: string
   country: string
   imageUrl?: string | null

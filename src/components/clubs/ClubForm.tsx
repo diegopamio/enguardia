@@ -45,6 +45,7 @@ const ClubForm: React.FC<ClubFormProps> = ({ club, onSuccess, onCancel, session 
     resolver: zodResolver(clubSchema),
     defaultValues: {
       name: '',
+      shortName: '',
       city: '',
       country: '',
       organizationId: '',
@@ -59,6 +60,7 @@ const ClubForm: React.FC<ClubFormProps> = ({ club, onSuccess, onCancel, session 
     if (club) {
       reset({
         name: club.name,
+        shortName: club.shortName || '',
         city: club.city || '',
         country: club.country,
         organizationId: club.organizations?.[0]?.organization?.id || '',
@@ -175,6 +177,22 @@ const ClubForm: React.FC<ClubFormProps> = ({ club, onSuccess, onCancel, session 
                     disabled={totalLoading}
                   />
                   {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
+                </div>
+
+                <div>
+                  <label htmlFor="shortName" className="block text-sm font-medium text-gray-700 mb-1">
+                    Short Name / Acronym (Optional)
+                  </label>
+                  <input
+                    id="shortName"
+                    {...register('shortName')}
+                    placeholder="E.g., PFC"
+                    maxLength={10}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={totalLoading}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Used in poule sheets. Max 10 characters.</p>
+                  {errors.shortName && <p className="text-red-500 text-sm mt-1">{errors.shortName.message}</p>}
                 </div>
 
                 <div>

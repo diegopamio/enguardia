@@ -10,6 +10,7 @@ export interface ClubOrganization {
 export interface Club {
   id:string;
   name: string;
+  shortName?: string;
   city?: string;
   country: string;
   imageUrl?: string;

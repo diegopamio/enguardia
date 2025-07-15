@@ -7,6 +7,7 @@ import { isValidCountryCode } from '@/lib/countries';
 
 const createClubSchema = z.object({
   name: z.string().min(1).max(255),
+  shortName: z.string().max(10).optional(),
   city: z.string().optional(),
   country: z.string().refine(isValidCountryCode, 'Invalid country code'),
   organizationId: z.string().optional(), // For immediate affiliation
@@ -119,7 +120,7 @@ export async function POST(request: NextRequest) {
 
     // Only authenticated users can create clubs
     const body = await request.json();
-    const { name, city, country, organizationId, imageUrl } = createClubSchema.parse(body);
+    const { name, shortName, city, country, organizationId, imageUrl } = createClubSchema.parse(body);
 
     // Check if club with same name/city/country already exists
     const existingClub = await prisma.club.findFirst({
@@ -141,6 +142,7 @@ export async function POST(request: NextRequest) {
     const club = await prisma.club.create({
       data: {
         name,
+        shortName,
         city,
         country,
         imageUrl: imageUrl || null,

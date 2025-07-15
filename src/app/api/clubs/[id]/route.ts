@@ -9,6 +9,7 @@ import { canUserManageClub, getSessionAndValidate } from '@/lib/api-auth';
 
 const updateClubSchema = z.object({
   name: z.string().min(1).max(255).optional(),
+  shortName: z.string().max(10).optional().nullable(),
   city: z.string().optional().nullable(),
   country: z.string().refine(isValidCountryCode, 'Invalid country code').optional(),
 });
@@ -97,7 +98,7 @@ export async function PUT(
     });
   }
 
-  const { name, city, country, imageUrl, organizationId } = parseResult.data;
+  const { name, shortName, city, country, imageUrl, organizationId } = parseResult.data;
 
   try {
     // Get the club to check permissions
@@ -145,6 +146,7 @@ export async function PUT(
       where: { id },
       data: {
         name,
+        shortName,
         city,
         country,
         imageUrl,

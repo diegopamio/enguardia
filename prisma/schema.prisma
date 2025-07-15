@@ -230,6 +230,7 @@ model GlobalRanking {
 model Club {
   id          String   @id @default(cuid())
   name        String
+  shortName   String?  // Acronym or short name for display in poules (e.g., "CEPFC" for "Club d'Escrime Paris FC")
   city        String?
   country     String   // ISO 3166-1 alpha-2 code
   imageUrl    String?  // Club logo URL

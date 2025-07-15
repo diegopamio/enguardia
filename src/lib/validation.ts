@@ -344,6 +344,7 @@ export type EventQueryInput = z.infer<typeof EventQuerySchema>
 
 export const clubSchema = z.object({
   name: z.string().min(1, 'Name is required'),
+  shortName: z.string().max(10, 'Short name must be 10 characters or less').optional(),
   city: z.string().optional(),
   country: z.string().min(1, 'Country is required'),
   organizationId: z.string().optional(),
