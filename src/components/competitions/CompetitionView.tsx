@@ -234,8 +234,33 @@ export default function CompetitionView({ competitionId }: CompetitionViewProps)
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <style jsx global>{`
+        @media print {
+          .print-hidden {
+            display: none !important;
+          }
+          .poule-sheet {
+            page-break-inside: avoid;
+            margin-bottom: 0;
+          }
+          .poule-sheet:not(.first-poule) {
+            page-break-before: always;
+          }
+          .space-y-8 > * + * {
+            margin-top: 0;
+          }
+          @page {
+            margin: 0.5in;
+          }
+          body {
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+        }
+      `}</style>
+      
       {/* Header */}
-      <div className="bg-white shadow rounded-lg mb-6">
+      <div className="bg-white shadow rounded-lg mb-6 print-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -293,7 +318,7 @@ export default function CompetitionView({ competitionId }: CompetitionViewProps)
 
       {/* Main Content with Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-3 print-hidden">
           <TabsTrigger value="overview">📊 Overview</TabsTrigger>
           <TabsTrigger value="poules">🎯 Poules</TabsTrigger>
           <TabsTrigger value="matches">⚔️ Match Results</TabsTrigger>

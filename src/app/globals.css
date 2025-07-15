@@ -80,6 +80,35 @@ body {
   }
 }
 
+/* Print-specific styles */
+@media print {
+  .print-hidden {
+    display: none !important;
+  }
+  
+  .poule-sheet {
+    page-break-inside: avoid;
+    margin-bottom: 0;
+  }
+  
+  .poule-sheet:not(.first-poule) {
+    page-break-before: always;
+  }
+  
+  .space-y-8 > * + * {
+    margin-top: 0;
+  }
+  
+  @page {
+    margin: 0.5in;
+  }
+  
+  body {
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+}
+
 /* Custom styles for react-flags-select */
 .custom-flags-select, 
 .custom-flags-select:focus, 

@@ -11,7 +11,7 @@ export default function Header() {
   const isLoading = status === 'loading';
 
   return (
-    <header className="bg-blue-600 text-white shadow-lg">
+    <header className="bg-blue-600 text-white shadow-lg print-hidden">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           {/* Logo and Navigation */}
